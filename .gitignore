@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Mac
+.DS_Store
+
+# Secrets — never commit
+.env
+*.json
+!package.json
+credentials/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
