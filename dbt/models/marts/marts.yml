@@ -1,0 +1,392 @@
+version: 2
+
+# Schema contract v0.2 (draft, Oct 8 2026) · Lane 3 marts · freeze Oct 10
+# Sign convention [C 4]: every drawdown and distance-from-high is price / high - 1, so 25% below reads -0.25.
+# Windows [C 6]: counted in trading days. A trading day is any trade_date on which ^GSPC has a row.
+# Traceability tags: [M §n] Methodology section; [L4] Lane 4 dashboard requirement; [C n] convention.
+
+models:
+  # ---------------------------------------------------------------------------------------------
+  - name: daily_drawdowns
+    description: >
+      Per-ticker math of Methodology section 2 for every tracked symbol (all four baskets), one row
+      per (trade_date, ticker). Produces the reference high, the drawdown, and the eligibility flags
+      the group math counts. Contains no group-level numbers. [M §2, M §6]
+    config:
+      materialized: incremental
+      incremental_strategy: insert_overwrite
+      partition_by: {field: trade_date, data_type: date}
+      cluster_by: [ticker]
+    columns:
+      - name: trade_date
+        tests: [not_null]
+      - name: ticker
+        tests: [not_null]
+      - name: basket
+        description: >
+          Basket whose membership span covers trade_date (from basket_members). A ticker with no
+          span in force on a date has no row on that date. [M §4]
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['speculative', 'megacap', 'benchmark', 'reference']
+      - name: adj_close
+        description: Adjusted close copied from prices_raw. [C 5]
+        tests: [not_null]
+      - name: days_listed
+        description: >
+          Trading days since listing_date, inclusive (1 on the listing day). Counted on the
+          benchmark calendar, not from the first backfilled row. Drives the two young-listing rules. [M §2]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 1}
+      - name: reference_window_days
+        description: >
+          Number of trading days that fed reference_high: the trailing 252 trading days including
+          today, minus any day with days_listed <= 20. 0 while days_listed <= 20. [M §2, M §6]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 252}
+      - name: reference_high
+        description: >
+          Highest adj_close over the reference window. NULL while reference_window_days = 0, so an
+          IPO-pop price never becomes the yardstick. [M §2]
+      - name: drawdown
+        description: adj_close / reference_high - 1. NULL when reference_high is NULL. [M §2, C 4]
+        tests:
+          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+      - name: is_mature
+        description: days_listed >= 60. A ticker with fewer than 60 trading days contributes nothing to signal math. [M §2]
+        tests: [not_null]
+      - name: is_signal_eligible
+        description: >
+          "Valid data" in the sense of section 2: is_mature AND drawdown IS NOT NULL AND basket in
+          (speculative, megacap). This is the denominator of breadth and the population of the medians. [M §2]
+        tests: [not_null]
+      - name: is_broken
+        description: drawdown <= -0.25. NULL when drawdown is NULL. Meaningful for the speculative basket; computed for all. [M §2]
+      - name: return_6m
+        description: >
+          adj_close / adj_close 126 trading days earlier - 1. NULL when fewer than 126 days exist.
+          Not a signal input; it exists because the dashboard ticker table shows it and no math may
+          live in the dashboard layer. [L4, M §6]
+      - name: computed_at
+        description: UTC timestamp of the dbt run that produced the row.
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [trade_date, ticker]
+
+  # ---------------------------------------------------------------------------------------------
+  - name: credit_daily
+    description: >
+      The credit gauge of section 2: HYG/IEF, its distance from the trailing 126-trading-day high,
+      and the watch/stress status, plus the FRED high-yield spread as the stated cross-check.
+      One row per trade_date. [M §2, M §6]
+    config:
+      materialized: incremental
+      incremental_strategy: insert_overwrite
+      partition_by: {field: trade_date, data_type: date}
+    columns:
+      - name: trade_date
+        tests: [not_null, unique]
+      - name: hyg_adj_close
+        tests: [not_null]
+      - name: ief_adj_close
+        tests: [not_null]
+      - name: credit_ratio
+        description: hyg_adj_close / ief_adj_close. [M §2]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0, inclusive: false}
+      - name: ratio_window_days
+        description: Trading days that fed ratio_high_126 (less than 126 only at the start of the backfill).
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 1, max_value: 126}
+      - name: ratio_high_126
+        description: Highest credit_ratio over the trailing 126 trading days including today. [M §2]
+        tests: [not_null]
+      - name: credit_distance
+        description: credit_ratio / ratio_high_126 - 1. [M §2, C 4]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+      - name: credit_status
+        description: >
+          normal when credit_distance > -0.03; watch when <= -0.03 and > -0.06; stress when <= -0.06.
+          Stress is a deterioration condition and part of washout; watch can lift Level 0 to 1; credit
+          alone never moves the dial past Level 1. [M §2, M §3]
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['normal', 'watch', 'stress']
+      - name: fred_hy_oas
+        description: >
+          ICE BofA US High Yield OAS (FRED series BAMLH0A0HYM2), percent, as of trade_date. The
+          cross-check named in section 2. NULL on days FRED has not published; never a signal input. [M §2]
+      - name: computed_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------------------------
+  - name: daily_signals
+    description: >
+      The group math, the conditions, the memory and the dial of sections 2 and 3, one row per
+      trade_date. "The dial level for today is queryable with one SELECT" means this table. Every
+      column the verdict cards show is here, including the credit status copied from credit_daily
+      and the templated explanation sentence, so the dashboard performs no logic. [M §2, M §3, M §6, L4]
+    config:
+      materialized: incremental
+      incremental_strategy: insert_overwrite
+      partition_by: {field: trade_date, data_type: date}
+    columns:
+      - name: trade_date
+        tests: [not_null, unique]
+
+      # --- speculative basket -----------------------------------------------------------------
+      - name: spec_members_in_force
+        description: Speculative members whose membership span covers trade_date and whose listing_date <= trade_date. [M §4]
+        tests: [not_null]
+      - name: spec_members_valid
+        description: Of those, the count with is_signal_eligible (mature, with a drawdown). The breadth denominator. [M §2]
+        tests: [not_null]
+      - name: spec_members_broken
+        description: Of the valid members, the count with is_broken. The breadth numerator. [M §2]
+        tests: [not_null]
+      - name: breadth
+        description: spec_members_broken / spec_members_valid. NULL when spec_members_valid = 0. [M §2]
+        tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 1, inclusive: true}
+      - name: spec_median_drawdown
+        description: Median drawdown across valid speculative members. NULL when none are valid. [M §2]
+      - name: roster_changed_today
+        description: >
+          TRUE when any speculative or megacap span starts or ends on trade_date. The dashboard
+          annotates these dates because each member moves breadth by roughly nine points mechanically. [M §4, L4]
+        tests: [not_null]
+
+      # --- mega-cap basket --------------------------------------------------------------------
+      - name: mega_members_valid
+        tests: [not_null]
+      - name: mega_median_drawdown
+        description: Median drawdown across valid megacap members. Input to the repricing condition. [M §2]
+
+      # --- benchmark --------------------------------------------------------------------------
+      - name: spx_adj_close
+        description: ^GSPC close. [C preamble, benchmark decision]
+        tests: [not_null]
+      - name: spx_reference_high
+        description: ^GSPC reference high under the same 252-trading-day rule as every ticker. [M §2]
+        tests: [not_null]
+      - name: spx_distance
+        description: spx_adj_close / spx_reference_high - 1. "Within 5% of its high" is spx_distance > -0.05. [M §2, C 4]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+
+      # --- concentration ----------------------------------------------------------------------
+      - name: concentration_ratio
+        description: SPY adj_close / RSP adj_close. [M §2]
+        tests: [not_null]
+      - name: concentration_high_126
+        description: Highest concentration_ratio over the trailing 126 trading days including today. [M §2]
+        tests: [not_null]
+      - name: concentration_distance
+        description: concentration_ratio / concentration_high_126 - 1. [M §2, C 4]
+        tests: [not_null]
+      - name: is_concentration_broken
+        description: concentration_distance <= -0.05. [M §2]
+        tests: [not_null]
+
+      # --- credit (copied from credit_daily for the one-SELECT verdict) ---------------------------
+      - name: credit_distance
+        tests: [not_null]
+      - name: credit_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['normal', 'watch', 'stress']
+
+      # --- external check ---------------------------------------------------------------------
+      - name: arkk_drawdown
+        description: ARKK drawdown from daily_drawdowns. Appears in no condition. [M §4]
+      - name: basket_audit_flag
+        description: >
+          TRUE when |arkk_drawdown - spec_median_drawdown| >= 0.15 (15 percentage points, the threshold
+          written into Methodology section 4 on Oct 8). The standing instruction is to audit the basket
+          before trusting the signal. [M §4]
+        tests: [not_null]
+
+      # --- conditions: facts about today, no memory ------------------------------------------
+      - name: cond_divergence
+        description: breadth >= 0.50 AND spec_median_drawdown <= -0.15 AND spx_distance > -0.05. FALSE when breadth is NULL. [M §2 matrix]
+        tests: [not_null]
+      - name: cond_divergence_strict
+        description: breadth >= 0.70 AND spec_median_drawdown <= -0.25 AND spx_distance > -0.05. Intensity marker only. [M §2]
+        tests: [not_null]
+      - name: det_spx_band
+        description: "Deterioration leg 1 of 3: spx_distance <= -0.05, at least 5% below its high (Methodology amended Oct 8 from the 5-to-10% band). [M §2 matrix]"
+        tests: [not_null]
+      - name: det_concentration
+        description: "Deterioration leg 2 of 3: is_concentration_broken. [M §2 matrix]"
+        tests: [not_null]
+      - name: det_credit_stress
+        description: "Deterioration leg 3 of 3: credit_status = stress. [M §2 matrix]"
+        tests: [not_null]
+      - name: cond_deterioration
+        description: det_spx_band OR det_concentration OR det_credit_stress. [M §2 matrix]
+        tests: [not_null]
+      - name: cond_repricing
+        description: spx_distance <= -0.10 AND (mega_median_drawdown <= -0.15 OR is_concentration_broken). [M §2 matrix]
+        tests: [not_null]
+      - name: cond_washout
+        description: spx_distance <= -0.20 AND breadth >= 0.90 AND credit_status = 'stress'. [M §2 matrix]
+        tests: [not_null]
+
+      # --- memory -----------------------------------------------------------------------------
+      - name: divergence_run_days
+        description: Consecutive trading days, ending today, on which cond_divergence was TRUE; 0 when FALSE today. [M §3 confirmation period]
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {min_value: 0}
+      - name: is_held_today
+        description: divergence_run_days >= 15. The confirmation period has been met as of today. [M §3]
+        tests: [not_null]
+      - name: episode_id
+        description: The open episode covering today (see episodes); NULL when no episode is open. [M §3]
+      - name: is_quiet_day
+        description: >
+          NOT (cond_deterioration OR cond_repricing OR cond_washout). Memoryless. While armed, the
+          dial sits at Level 3 or above exactly when this is FALSE, so the armed expiry clock can be
+          computed from this column with a window sum rather than a recursive state machine. [M §3]
+        tests: [not_null]
+      - name: is_armed
+        description: >
+          TRUE when at least one held episode's arming interval covers today: from its held_date up to
+          but excluding its disarm_date (see episodes). [M §3]
+        tests: [not_null]
+      - name: armed_since
+        description: start_date of the most recently held episode whose interval covers today; NULL when not armed. [M §3]
+      - name: armed_episode_id
+        description: episode_id that armed_since refers to; NULL when not armed.
+      - name: quiet_days_used
+        description: >
+          Quiet trading days counted from armed_since through today for the armed episode (378 = 18
+          quiet months at 21 trading days per month). NULL when not armed. [M §3, quiet-month decision]
+        tests:
+          - dbt_utils.accepted_range: {min_value: 0, max_value: 378, inclusive: true}
+      - name: armed_ceiling_date
+        description: armed_since + 36 calendar months. Armed never survives past it. NULL when not armed. [M §3]
+      - name: armed_state_change
+        description: >
+          Event marker for the dashboard strip: 'armed' on a held_date that arms from unarmed;
+          'rearmed' on a held_date while already armed; 'disarmed_quiet' or 'disarmed_ceiling' on the
+          first unarmed day after an expiry; NULL otherwise. [M §3, L4]
+        tests:
+          - accepted_values:
+              values: ['armed', 'rearmed', 'disarmed_quiet', 'disarmed_ceiling']
+
+      # --- the dial ---------------------------------------------------------------------------
+      - name: dial_level
+        description: >
+          Most severe level whose requirements hold today, evaluated top down:
+          5 if cond_washout;
+          4 if is_armed AND cond_repricing;
+          3 if is_armed AND cond_deterioration;
+          2 if is_armed AND spx_distance > -0.05;
+          1 if cond_divergence OR credit_status IN ('watch','stress') OR is_armed OR cond_deterioration OR cond_repricing;
+          0 otherwise. [M §3]
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3, 4, 5]
+              quote: false
+      - name: dial_label
+        description: CALM, STRAIN, DIVERGENCE, TOPPING, REPRICING, WASHOUT for levels 0 to 5. [M §3]
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['CALM', 'STRAIN', 'DIVERGENCE', 'TOPPING', 'REPRICING', 'WASHOUT']
+      - name: badge
+        description: >
+          Qualifies Level 1, or an unarmed Level 5. 'off_pattern' when NOT is_armed and
+          (det_spx_band OR det_concentration OR cond_repricing OR cond_washout): the market is
+          declining without the junk-first precedent. 'credit_only' when NOT is_armed and
+          credit_status = 'stress' and no equity leg is TRUE. NULL otherwise. off_pattern takes
+          precedence over credit_only. [M §3]
+        tests:
+          - accepted_values:
+              values: ['off_pattern', 'credit_only']
+      - name: dial_explanation
+        description: >
+          One templated sentence for the verdict card, generated by a dbt macro from the flags above
+          (e.g. "DIVERGENCE: armed since 2026-02-11; 7 of 11 speculative names broken; S&P 1.8% off its
+          high."). The template is Lane 3's; the dashboard renders it verbatim. [L4]
+        tests: [not_null]
+      - name: computed_at
+        tests: [not_null]
+
+  # ---------------------------------------------------------------------------------------------
+  - name: episodes
+    description: >
+      The receipts behind armed: one row per contiguous divergence span. A span begins the first
+      trade_date on which cond_divergence is TRUE and ends on the first later trade_date on which
+      breadth < 0.30 (that day is excluded). Days inside a span on which cond_divergence is FALSE
+      but breadth stays >= 0.30 remain in the span. A span is held when it contains 15 consecutive
+      divergence days; held spans are the arming events of section 3. Rebuilt in full each run
+      (table, not incremental) because an open span's row changes daily. [M §3, M §6]
+    config:
+      materialized: table
+      partition_by: {field: start_date, data_type: date}
+    columns:
+      - name: episode_id
+        description: "'EP-' followed by start_date, e.g. EP-2026-02-11."
+        tests: [not_null, unique]
+      - name: start_date
+        tests: [not_null]
+      - name: end_date
+        description: Last trade_date inside the span. NULL while open.
+      - name: is_open
+        tests: [not_null]
+      - name: trading_days
+        description: Trading days in the span so far.
+        tests: [not_null]
+      - name: divergence_days
+        description: Days in the span on which cond_divergence was TRUE.
+        tests: [not_null]
+      - name: max_divergence_run
+        description: Longest run of consecutive divergence days inside the span.
+        tests: [not_null]
+      - name: is_held
+        description: max_divergence_run >= 15. [M §3]
+        tests: [not_null]
+      - name: held_date
+        description: The 15th consecutive divergence day, i.e. the day the span armed the system. NULL unless is_held. [M §3]
+      - name: max_breadth
+        description: Maximum intensity, breadth axis. [M §3]
+        tests: [not_null]
+      - name: min_spec_median_drawdown
+        description: Maximum intensity, median axis (most negative median member drawdown). [M §3]
+        tests: [not_null]
+      - name: strict_days
+        description: Days on which cond_divergence_strict was TRUE. [M §2]
+        tests: [not_null]
+      - name: armed_since
+        description: Equals start_date when is_held; NULL otherwise. [M §3]
+      - name: armed_ceiling_date
+        description: armed_since + 36 calendar months. [M §3]
+      - name: quiet_expiry_date
+        description: >
+          The trade_date on which the 378th quiet day counted from armed_since occurred; NULL until
+          it has occurred. [M §3]
+      - name: disarm_date
+        description: >
+          First trade_date on which this span no longer arms the system: the day after
+          quiet_expiry_date, or the first trading day on or after armed_ceiling_date, whichever
+          comes first. NULL while the interval is still open. [M §3]
+      - name: disarm_reason
+        tests:
+          - accepted_values:
+              values: ['quiet_expiry', 'ceiling']
+      - name: computed_at
+        tests: [not_null]

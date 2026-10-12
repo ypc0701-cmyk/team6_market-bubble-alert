@@ -1,0 +1,25 @@
+ticker,company_name,basket,profile,listing_date,added_date,removed_date,added_reason,removed_reason,notes
+CRWV,CoreWeave,speculative,Leveraged neocloud; debt-funded GPU capacity,2025-03-28,2024-10-01,,founding_roster,,
+NBIS,Nebius,speculative,Neocloud; the moonshot that motivated breadth over averages,2024-10-21,2024-10-01,,founding_roster,,Yahoo history starts at the Nasdaq trading resumption; no pre-halt Yandex rows served
+IREN,IREN,speculative,Crypto miner turned data-center builder,2021-11-17,2024-10-01,,founding_roster,,
+APLD,Applied Digital,speculative,Crypto miner turned data-center builder,2022-04-13,2024-10-01,,founding_roster,,
+WULF,TeraWulf,speculative,Crypto miner turned data-center builder,1994-04-05,2024-10-01,,founding_roster,,Yahoo history includes the IKONICS predecessor; TeraWulf merger closed 2021-12-14
+CIFR,Cipher Mining,speculative,Crypto miner turned data-center builder,2020-10-20,2024-10-01,,founding_roster,,Yahoo history includes the Good Works SPAC predecessor; Cipher merger closed 2021-08-30
+SMCI,Super Micro,speculative,Volatile picks-and-shovels hardware,2007-03-29,2024-10-01,,founding_roster,,
+AI,C3.ai,speculative,Small-cap AI story stock,2020-12-09,2024-10-01,,founding_roster,,
+SOUN,SoundHound,speculative,Small-cap AI story stock,2022-04-28,2024-10-01,,founding_roster,,
+BBAI,BigBear.ai,speculative,Small-cap AI story stock,2021-04-05,2024-10-01,,founding_roster,,Yahoo history includes the GigCapital4 SPAC predecessor; BigBear.ai merger closed 2021-12-08
+SPCX,SpaceX,speculative,Over 100x sales with an unusually large retail float; this cycle's clearest froth thermometer,2026-06-12,2024-10-01,,founding_roster,,IPO June 12 2026
+MSFT,Microsoft,megacap,Large AI capital spender,1986-03-13,2024-10-01,,founding_roster,,
+GOOGL,Alphabet,megacap,Large AI capital spender,2004-08-19,2024-10-01,,founding_roster,,
+META,Meta Platforms,megacap,Large AI capital spender,2012-05-18,2024-10-01,,founding_roster,,
+AMZN,Amazon,megacap,Large AI capital spender,1997-05-15,2024-10-01,,founding_roster,,
+NVDA,Nvidia,megacap,Large AI capital spender,1999-01-22,2024-10-01,,founding_roster,,
+AVGO,Broadcom,megacap,Large AI capital spender,2009-08-06,2024-10-01,,founding_roster,,
+ORCL,Oracle,megacap,Large AI capital spender,1986-03-12,2024-10-01,,founding_roster,,
+^GSPC,S&P 500 index,benchmark,,1927-12-30,2024-10-01,,reference_series,,Price-only index level; the benchmark for distance from high
+ARKK,ARK Innovation ETF,reference,External check on basket construction only,2014-10-31,2024-10-01,,reference_series,,
+HYG,iShares High Yield Corporate Bond ETF,reference,Credit gauge numerator,2007-04-11,2024-10-01,,reference_series,,
+IEF,iShares 7-10 Year Treasury ETF,reference,Credit gauge denominator,2002-07-30,2024-10-01,,reference_series,,
+SPY,SPDR S&P 500 ETF,reference,Concentration ratio numerator,1993-01-29,2024-10-01,,reference_series,,
+RSP,Invesco S&P 500 Equal Weight ETF,reference,Concentration ratio denominator,2003-05-01,2024-10-01,,reference_series,,
