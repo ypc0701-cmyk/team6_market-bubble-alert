@@ -6,7 +6,7 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 ## Lanes
 | Lane | Owner | Folder |
 |---|---|---|
-| 1 Ingestion & orchestration | | extractor/, dags/ |
+| 1 Ingestion & orchestration | Kean | extractor/, dags/ |
 | 2 Warehouse & dbt | | dbt/ |
 | 3 Signal logic | Javier | dbt/ (marts) |
 | 4 Dashboard | | dashboard/ |
