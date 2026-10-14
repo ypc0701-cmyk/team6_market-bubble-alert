@@ -1,0 +1,4 @@
+trade_date,hyg_adj_close,ief_adj_close,credit_ratio,ratio_window_days,ratio_high_126,credit_distance,credit_status,fred_hy_oas,computed_at
+2026-10-05,81.18,97.11,0.835959,126,0.842647,-0.007937,normal,3.41,2026-10-08T01:00:00+00:00
+2026-10-06,81.49,97.5,0.835795,126,0.842481,-0.007937,normal,3.41,2026-10-08T01:00:00+00:00
+2026-10-07,78.92,94.35,0.83646,126,0.843152,-0.007937,normal,3.41,2026-10-08T01:00:00+00:00

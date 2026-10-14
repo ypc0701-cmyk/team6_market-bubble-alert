@@ -1,0 +1,103 @@
+# Methodology: the AI bubble early-warning signal
+
+Oct 7, 2026 · Lane 3 north star · everything in the warehouse derives from this document
+
+This is the anchor document for the project's analytical core. It explains what we measure, why we measure it that way, and what the output means. The schema contract is a translation of this document into tables; when a modeling question comes up, the answer should be traceable to a paragraph here.
+
+## 1. The observation we are testing
+
+Jeremy Grantham, co-founder of GMO and the investor who publicly called both the dot-com top and the 2008 crisis, has documented a pattern that preceded the four great market tops of the last century. In 1929, the index of low-priced speculative stocks fell roughly 40% while the broad market rose about 35% into its October peak. In 1972, the S&P 500 gained 17% in the year the average stock lost 17%. In 2000, growth stocks peaked in February and were down about 40% by the time the rest of the S&P climbed to a matching high in October. In 2021, meme stocks and the ARK-style speculative names were down 35 to 40% by year end while the S&P kept setting records.
+
+The proposed mechanism is rotation. As a long cycle ages, professional investors who must stay invested grow cautious; they sell the most speculative names first and move into the largest, safest companies. The index, dominated by those large names, keeps rising, which hides the breakdown happening underneath it. The junk cracks first, quietly, and the top arrives months later. The rotation is not a side effect of the pattern; it is the pattern, and it carries a perverse consequence: the refuge buying inflates the large names' valuations precisely as the cycle ends, leaving them more fragile rather than safer. In 1972 the refuges were the Nifty Fifty, the “one-decision” stocks everyone agreed to buy and never sell; in 1973-74 they fell 60 to 90% while remaining excellent businesses. The second act is historically common but not guaranteed: in the 2021 episode the speculative tier crashed on schedule and the mega caps fell hard in 2022, yet their repricing reversed and the index recovered. The junk cracking first arms the system; it does not decide the outcome.
+
+Our hypothesis is that if the current AI investment cycle ends the way those four did, the same divergence will appear first in today's speculative AI tier: the leveraged neoclouds, the debt-funded data center builders, and the retail-favorite AI story stocks. This project computes that divergence every trading day and raises a flag when the historical pattern is present. We are not predicting that the bubble bursts; we are instrumenting the one pattern that has historically preceded the burst.
+
+## 2. Definitions and conditions
+
+The universe has three tracked groups and four supporting series. The speculative basket holds eleven names, enumerated in section 4 and selected under its membership rules; from the first pipeline run onward, the basket\_members table is the live roster. The mega-cap basket holds the seven large AI capital spenders (Microsoft, Google, Meta, Amazon, Nvidia, Broadcom, Oracle). The benchmark is the S&P 500. Supporting series: ARKK as an external check on our basket construction, HYG and IEF for the credit gauge, and SPY and RSP for the concentration ratio.
+
+For every ticker on every trading day we compute the reference high: the highest price over the available history, capped at the last 252 trading days. That is a 52-week high once a ticker is old enough, and the high of its whole listed life before that; there is no 52-week waiting period. The **drawdown** is the **price divided by that reference high, minus one**. Two rules govern young listings. First, a listing's first 20 trading days are excluded from the reference-high computation, so an IPO-pop spike never becomes the yardstick; without this, a name could read deeply broken against a first-week price that reflected price discovery, not rotation. Second, a ticker with fewer than 60 trading days of history is excluded from signal math until it matures, because a high computed on a few weeks of data is noise. SpaceX (SPCX, listed June 2026) matured into the signal in early September under both rules. A speculative member counts as **broken** when its **drawdown is 25% or worse**. **Breadth** is the share of members with valid data that are broken. We also track the median member drawdown and the benchmark's own distance from its high.
+
+The signal logic is built from named **conditions**: statements about today's prices that are either true or false, with no memory attached.
+
+- **Divergence condition.** The Grantham pattern is present today: breadth at least 50% and the median member at least 15% below its high, while the S&P sits within 5% of its own high. It has a **strict** form at 70% breadth and a 25% median drawdown; the strict form marks intensity, not a different pattern.
+- **Deterioration conditions.** The broad market has started to give way while remaining short of a full repricing. Any of: the S&P at least 5% below its high (amended Oct 8, 2026: the earlier 5-to-10% band left a decline past 10% without a mega-cap or concentration break satisfying no condition at all); the concentration ratio (SPY divided by RSP) at least 5% below its 126-trading-day high; or the credit gauge at stress.
+- **Repricing condition.** The decline has reached the giants: the S&P at least 10% below its high, and either the median mega-cap member at least 15% below its own high or the concentration ratio broken as above.
+- **Washout condition.** A full bear: the S&P at least 20% below its high, breadth at 90% or more, and the credit gauge at stress.
+- **Credit gauge.** The ratio of high-yield bonds to Treasuries (HYG/IEF): **watch** when 3% below its 126-trading-day high, **stress** at 6%. Because Treasuries rally in a flight to quality, the ratio mixes credit spreads with duration; we accept it as a risk-off measure and cross-check against the FRED high-yield spread series.
+
+The same conditions, stated input by input, so nothing is ever inferred from omission. “Not used” is an explicit instruction: that input plays no role in that condition.
+
+| Condition (see above for required combinations) | Speculative basket | Mega-cap basket | S&P 500 | Concentration (SPY/RSP) | Credit (HYG/IEF) |
+| --- | --- | --- | --- | --- | --- |
+| Divergence | Breadth ≥ 50% and median member ≥ 15% below its high (strict form: 70% and 25%) | Not used | Within 5% of its high | Not used | Not used |
+| Deterioration&#32; | Not used; its testimony is carried by armed | Not used | At least 5% below its high | ≥ 5% below its 126-day high | At stress |
+| Repricing | Not used; carried by armed | Median member ≥ 15% below its high (this OR the concentration column) | ≥ 10% below its high | ≥ 5% below its 126-day high (this OR the mega-cap column) | Not used |
+| Washout | Breadth ≥ 90% | Not used | ≥ 20% below its high | Not used | At stress |
+
+ARKK appears in no condition; it is a cross-check on basket construction only (section 4).
+
+Why breadth and median rather than a basket index: an early version of this methodology averaged the basket's returns, and a single member (Nebius, up 209% in six months) masked nine members sitting 26 to 65% below their highs; the average said calm while nine of ten ships were sinking. Counting members democratically is also more faithful to the historical record, which describes “the average stock” and counts of breakdowns, not capitalization-weighted composites. The thresholds themselves are judgment calibrated against the four historical episodes, chosen before running the system, and deliberately not optimized against recent data; a threshold tuned to fit the past would tell us nothing about the future.
+
+## 3. Memory and the dial
+
+Conditions describe today. The system adds exactly one piece of memory and produces exactly one output.
+
+A condition has **held** when it has been true for the **confirmation period**: 15 consecutive trading days. The cautionary case is recent: between February and April 2026 the speculative tier sold off hard (Goldman's comparable unprofitable-tech basket fell about 33%) and then recovered 27% in May. A daily reading would have screamed and gone quiet; a held reading stays skeptical through exactly that kind of whipsaw.
+
+An **episode** is a contiguous span of the divergence condition firing. It begins the first day the condition is true and ends only when breadth falls back below 30%, so a brief pause in the selling does not split one event into several. The episodes table stores each span with its start date, end date, whether it was ever held, and its maximum intensity; it is the receipts behind the system's memory.
+
+The memory is one bit plus a date: the system is **armed** or it is not. It arms when the divergence condition has held within an episode; **armed-since** is that episode's start date; armed expires 18 months after armed-since unless a newly held episode re-arms it. Armed means the junk-first breakdown is on record, so later market weakness reads as the historical sequence rather than ordinary noise. The 18-month expiry is a design parameter, not a measured constant. In the historical episodes, the gap between the speculative tier cracking and the index topping runs roughly 6 to 12 months, but both endpoints depend on dating choices: in 2021, ARKK peaked in February and was unambiguously broken by May, with the S&P topping January 3, 2022, a gap of 8 to 10 months depending on which crack date is used; in 2000, growth stocks peaked in February and the S&P's absolute high was March 24, yet the index retested within half a percent of that high on September 1 before the real downtrend, so the gap is one month or seven depending on which top counts. We set the expiry above the historical range deliberately, because the error costs are asymmetric: staying armed a few months too long is cheap (the dial idles at a low level), while expiring just before the top is expensive (the system would misclassify the real repricing as off-pattern). Eighteen months covers every defensible dating of the four episodes and buys margin for this cycle running longer than its predecessors.
+
+The expiry clock counts only quiet days: days on which the dial sits below Level 3. Time spent at TOPPING or above suspends the clock, because escalation is the prediction being confirmed, not the memory going stale; without this rule, armed could expire in the middle of the repricing it exists to recognize. The suspension has a hard ceiling: armed never survives past 36 calendar months from armed-since, regardless of pauses. The ceiling exists because a choppy market that dips 5 to 10% every few months would otherwise pause the clock repeatedly and make the memory immortal; 36 months bounds it by the historical record, in which no episode's span from first crack to washout exceeded roughly two and a half years, plus margin. Disarming therefore happens in exactly two ways: 18 quiet months, or the ceiling. There is deliberately no early disarm on the speculative basket recovering. A recovery rule sounds symmetric but cannot be built reliably from our primitives: drawdowns are measured against a rolling 252-day high, so in a long sideways market after a crash the old highs roll out of the window and measured drawdowns shrink toward zero mechanically, which would fire “recovery” on the anniversary of the crash rather than on actual healing, in exactly the drawn-out bear where disarming is most dangerous. The residual risk we accept instead is visible and debatable: while armed, an unrelated later correction can escalate the dial as if it were the sequence.
+
+The **dial** is the single output: one level from 0 to 5, equal to the most severe level whose requirements are met today. Levels 3 and above are reachable only while armed. Levels do not require earlier conditions to remain true: the divergence condition's role is to arm the system, and it is armed, not any live reading of the speculative basket, that the later levels inherit.
+
+- **Level 0 · CALM.** Not armed, and no condition true.
+- **Level 1 · STRAIN.** Early signs without confirmation: the divergence condition firing but not yet held; or credit at watch; or the system armed with nothing stronger currently true.
+- **Level 2 · DIVERGENCE.** Armed, with the S&P still within 5% of its high: the junk-first breakdown is confirmed and the index has not yet given way.
+- **Level 3 · TOPPING.** Armed, and at least one deterioration condition true.
+- **Level 4 · REPRICING.** Armed, and the repricing condition true.
+- **Level 5 · WASHOUT.** The washout condition true.
+
+Movement is asymmetric by construction. Escalation requires conditions to be met, plus the confirmation period wherever arming is involved. De-escalation happens only on explicit exits: the episode ending (breadth back below 30%), the S&P returning to within 5% of its high, or armed expiring. The dial steps down deliberately; it does not flicker.
+
+While the system is not armed, deterioration and repricing conditions do not raise the dial; they set a **badge** at Level 1 instead. Two badges exist: **off-pattern**, meaning the market is declining without the junk-first precedent, which history reads as an ordinary correction; and **credit-only**, meaning funding markets are stressed with no equity pattern present. The washout condition is the one exception: a 20% bear always shows as Level 5, carrying the off-pattern badge if unarmed. Credit's role is deliberately bounded across the scale: watch can lift Level 0 to 1, stress counts as a deterioration condition and is part of washout, and credit alone can never move the dial past Level 1, because HYG/IEF is the least AI-specific series we track even though it is often the earliest to move; the speculative tier is debt-funded, so a closing funding window is the mechanism that converts drawdowns into failures.
+
+Terminology, fixed: a **condition** is a fact about today's prices; the **confirmation period** is 15 consecutive trading days; an **episode** is a contiguous divergence span, stored in the episodes table; **armed** is the system's only memory, lasting 18 quiet months from armed-since with the clock paused at Level 3 and above, capped at 36 calendar months; the **dial** is the 0-to-5 output; a **badge** qualifies Level 1 (or an unarmed Level 5). The word “stage” is retired from system vocabulary and survives only as narrative: in the story of section 1, levels 2 and 3 are the first act and level 4 is the second.
+
+## 4. Basket membership rules
+
+A name belongs in the speculative basket when it passes two tests: professionals reducing risk would sell it early (retail favorite, high volatility, debt-funded, thin institutional sponsorship), and its valuation rests mostly on story rather than current cash flow. The founding roster, as of October 2026, holds exactly eleven names:
+
+| Ticker | Company | Profile |
+| --- | --- | --- |
+| CRWV | CoreWeave | Leveraged neocloud; debt-funded GPU capacity |
+| NBIS | Nebius | Neocloud; the moonshot that motivated breadth over averages (section 2) |
+| IREN | IREN | Crypto miner turned data-center builder |
+| APLD | Applied Digital | Crypto miner turned data-center builder |
+| WULF | TeraWulf | Crypto miner turned data-center builder |
+| CIFR | Cipher Mining | Crypto miner turned data-center builder |
+| SMCI | Super Micro | Volatile picks-and-shovels hardware |
+| AI | C3.ai | Small-cap AI story stock |
+| SOUN | SoundHound | Small-cap AI story stock |
+| BBAI | BigBear.ai | Small-cap AI story stock |
+| SPCX | SpaceX | Over 100x sales with an unusually large retail float; this cycle's clearest froth thermometer |
+
+This table records the founding state; basket\_members is the authoritative roster thereafter.
+
+Membership changes follow three rules. A name may be removed only for delisting or acquisition, for ceasing to be an AI story at all, or for durable graduation to profitability and institutional ownership. A name is never removed because it fell; a collapsing member is the signal working, and deleting it would reset breadth downward and blind the monitor to exactly what it exists to see. Every change is recorded with a date and reason in the basket\_members table, which is modeled as a slowly changing dimension so historical signal values remain reproducible.
+
+Newly listed names enter the same way as existing ones: through the two tests, after the 60-day maturity gate, with their first 20 trading days excluded from the reference high (section 2). In practice a major AI listing lands in the speculative basket first regardless of market capitalization, because IPO pricing is story pricing and retail enthusiasm peaks at the offering; SpaceX set the precedent, and an OpenAI or Anthropic IPO would follow it. No name sits in both baskets at once. Promotion from the speculative to the mega-cap basket requires durable, self-funded scale, meaning capex covered by the company's own operating cash flow, deep institutional ownership, and sustained profitability, and it is logged in basket\_members like any other change. Roster changes must never rewrite history: breadth on a given date counts only members whose membership and maturity were in force on that date, historical signal values are never recomputed under a later roster, and the dashboard annotates roster-change dates, because at the current basket size each member moves breadth by roughly nine points mechanically and such a jump must never be misread as a market move.
+
+Because the basket is hand-picked, ARKK serves as the external check. It is the market's own tradeable basket of speculative growth and was part of the 2021 historical episode. If ARKK's drawdown and our median member differ by 15 percentage points or more (threshold fixed Oct 8, 2026), the standing instruction is to audit the basket before trusting the signal.
+
+## 5. Limitations
+
+The signal marks elevated risk of a top, never a date. In 2021 it fired months before the peak; it can also fire and fade, which is why episodes record history instead of erasing it. The thresholds are informed judgment, not fitted parameters, and reasonable people could set them differently; what matters is that they were fixed in advance and are only changed with a logged reason. The basket is subjective by construction, mitigated by written criteria, a changelog, and the ARKK cross-check, but not eliminated. Names that already collapsed and delisted before we built the basket are invisible to us, which biases the backfilled history calm. Young listings contribute nothing for their first 60 trading days. We use daily closing prices only. And the system is a pattern detector built for a course project, not investment advice; its job is to make one historical regularity observable, not to manage anyone's money.
+
+## 6. From methodology to warehouse
+
+The schema contract is this document translated into tables, and the mapping is one to one. Prices land in prices\_raw, one row per ticker per trading day, with the source recorded. Membership rules live in basket\_members as the slowly changing dimension from section 4. The per-ticker math of section 2 becomes daily\_drawdowns: reference high, reference-window length in trading days, drawdown, maturity flag, broken flag. The group math and the dial become daily\_signals: breadth, median member drawdown, benchmark distance from high, the condition flags, the dial level, the badge, and the armed flag with its armed\_since date. Section 3's episode logic becomes the episodes table, the receipts behind armed: start, end, held flag, maximum intensity. The credit gauge becomes credit\_daily with the ratio, its distance from the rolling high, and the watch or stress flag. Anything the dashboard shows must come from these tables; no analytical logic lives in the dashboard layer.
+
+When a modeling dispute comes up, the resolution order is: reread the relevant section here, and if the document is silent or ambiguous, decide, then amend this document in the same pull request as the code. The methodology and the warehouse are not allowed to drift apart.

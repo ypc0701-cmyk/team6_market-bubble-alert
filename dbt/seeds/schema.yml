@@ -1,0 +1,67 @@
+version: 2
+
+seeds:
+  - name: basket_members
+    description: >
+      The roster, modeled as a type 2 slowly changing dimension: one row per membership span of a
+      ticker in a basket. All 22 tracked symbols live here, so the extractor's ticker list, the
+      per-date roster and the "what did we track on date X" question all resolve from one table.
+      A name is never removed because it fell; every change carries a date and a reason. Breadth on
+      a date counts only members whose span covers that date. [M §4, M §6, C 9]
+    config:
+      column_types:
+        ticker: STRING
+        company_name: STRING
+        basket: STRING
+        profile: STRING
+        listing_date: DATE
+        added_date: DATE
+        removed_date: DATE
+        added_reason: STRING
+        removed_reason: STRING
+        notes: STRING
+    columns:
+      - name: ticker
+        description: Uppercase yfinance symbol. [C 1]
+        tests: [not_null]
+      - name: company_name
+        description: Display name for the dashboard ticker table. [L4]
+        tests: [not_null]
+      - name: basket
+        description: >
+          speculative = the hand-picked tier the signal measures; megacap = the seven large AI
+          capital spenders; benchmark = ^GSPC; reference = ARKK, HYG, IEF, SPY, RSP, which appear
+          in no breadth or median computation. [M §2]
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['speculative', 'megacap', 'benchmark', 'reference']
+      - name: profile
+        description: One-line rationale from the founding table (section 4). Nullable for benchmark and reference rows. [M §4]
+      - name: listing_date
+        description: >
+          First trading day of the symbol. Drives the 20-day reference-high exclusion and the 60-day
+          maturity gate; stored explicitly because the two-year backfill would otherwise make every
+          old name look newly listed on the first backfilled day. [M §2]
+        tests: [not_null]
+      - name: added_date
+        description: First trade_date on which this span is in force (inclusive). Part of the key.
+        tests: [not_null]
+      - name: removed_date
+        description: First trade_date on which this span is no longer in force (exclusive). NULL means current.
+      - name: added_reason
+        description: Why the span began. [M §4]
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['founding_roster', 'new_listing', 'promotion_to_megacap', 'reference_series']
+      - name: removed_reason
+        description: Why the span ended; NULL while current. Falling is deliberately not an allowed value. [M §4]
+        tests:
+          - accepted_values:
+              values: ['delisting_or_acquisition', 'no_longer_ai_story', 'graduation', 'promotion_to_megacap']
+      - name: notes
+        description: Free text, e.g. the PR that logged the change.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [ticker, added_date]
