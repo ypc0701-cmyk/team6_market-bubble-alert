@@ -4,3 +4,13 @@ pyarrow
 requests
 google-cloud-storage
 google-cloud-bigquery
+
+# Pinned to Astro Runtime 3.3-9 versions so pip cannot break Airflow
+opentelemetry-api==1.42.1
+opentelemetry-exporter-otlp==1.42.1
+opentelemetry-exporter-otlp-proto-common==1.42.1
+opentelemetry-exporter-otlp-proto-grpc==1.42.1
+opentelemetry-exporter-otlp-proto-http==1.42.1
+opentelemetry-proto==1.42.1
+opentelemetry-sdk==1.42.1
+opentelemetry-semantic-conventions==0.63b1
