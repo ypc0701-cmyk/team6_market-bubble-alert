@@ -5,3 +5,4 @@
 | 2026-10-11 | 5 | Claude | Summarized lane plan; repo setup walkthrough | |
 | 2026-10-13 | 1 | Claude (Opus 5.5, claude.ai) | Wrote extractor/extract.py (yfinance to GCS to raw.prices_raw) against contract v0.2; ran and debugged in Cloud Shell | Output verified: 168 rows, no dupes on rerun |
 | 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Ran 2-year backfill; wrote extractor/Dockerfile and README run section; tested image in Cloud Shell | 11,727 rows; docker run reloaded 3 days with no dupes |
+| 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Added Tiingo fallback to extractor (per-ticker, --force-fallback and --dry-run flags); tested in Cloud Shell | Dry run: Tiingo served 23/24 tickers; ^GSPC not available on Tiingo |
