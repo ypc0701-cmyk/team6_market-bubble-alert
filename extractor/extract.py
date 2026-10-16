@@ -107,9 +107,9 @@ def fetch(start, end, run_id, force_fallback=False):
     return df[COLS]
 
 
-def to_gcs(df):
+def to_gcs(df, credentials=None):
     """One parquet per trading day; re-running a date overwrites its file."""
-    bucket = storage.Client(project=PROJECT).bucket(BUCKET)
+    bucket = storage.Client(project=PROJECT, credentials=credentials).bucket(BUCKET)
     uris = []
     for d, g in df.groupby("trade_date"):
         path = f"prices/trade_date={d}/prices.parquet"
@@ -120,9 +120,9 @@ def to_gcs(df):
     return uris
 
 
-def to_bigquery(uris, dates):
+def to_bigquery(uris, dates, credentials=None):
     """Delete the dates being loaded, then append, so reruns never duplicate."""
-    bq = bigquery.Client(project=PROJECT)
+    bq = bigquery.Client(project=PROJECT, credentials=credentials)
     table = bigquery.Table(TABLE, schema=SCHEMA)
     table.time_partitioning = bigquery.TimePartitioning(field="trade_date")
     table.clustering_fields = ["ticker"]
