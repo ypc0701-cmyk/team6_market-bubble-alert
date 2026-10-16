@@ -23,14 +23,19 @@ def prices_daily():
 
     @task
     def extract_and_load():
-        from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+        import json
+
+        from airflow.sdk import Connection
+        from google.oauth2 import service_account
 
         from extractor.extract import fetch, to_bigquery, to_gcs
 
         ctx = get_current_context()
         end = (ctx.get("data_interval_end") or pendulum.now("UTC")).date()
         start = end - timedelta(days=5)  # re-pull a few days so late corrections land; reruns are idempotent
-        creds = GoogleBaseHook(gcp_conn_id="google_cloud_default").get_credentials()
+        key = Connection.get("google_cloud_default").extra_dejson["keyfile_dict"]
+        creds = service_account.Credentials.from_service_account_info(
+            key if isinstance(key, dict) else json.loads(key))
 
         df = fetch(start, end, ctx["run_id"])
         uris = to_gcs(df, credentials=creds)
