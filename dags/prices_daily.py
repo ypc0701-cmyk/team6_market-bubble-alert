@@ -10,13 +10,32 @@ import pendulum
 from airflow.sdk import dag, get_current_context, task
 
 
+def notify_slack_on_failure(context):
+    """Posts to Slack when a task fails for good (after retries). Needs secret env var SLACK_WEBHOOK_URL."""
+    import os
+
+    import requests
+
+    url = os.environ.get("SLACK_WEBHOOK_URL")
+    if not url:
+        print("SLACK_WEBHOOK_URL not set; skipping Slack alert")
+        return
+    ti = context["ti"]
+    text = (f":red_circle: *{ti.dag_id}* failed\n"
+            f"Task: `{ti.task_id}` | Run: `{context.get('run_id')}`\n"
+            f"Error: {context.get('exception')}\n"
+            f"Log: {getattr(ti, 'log_url', 'see Airflow UI')}")
+    requests.post(url, json={"text": text}, timeout=10)
+
+
 @dag(
     dag_id="prices_daily",
     schedule="0 22 * * 1-5",
     start_date=datetime(2026, 10, 1),
     catchup=False,
     max_active_runs=1,
-    default_args={"owner": "lane1", "retries": 2, "retry_delay": timedelta(minutes=5)},
+    default_args={"owner": "lane1", "retries": 2, "retry_delay": timedelta(minutes=5),
+                  "on_failure_callback": notify_slack_on_failure},
     tags=["lane1", "ingestion"],
     params={"force_fail": False},  # trigger with force_fail=true to test alerting
 )
