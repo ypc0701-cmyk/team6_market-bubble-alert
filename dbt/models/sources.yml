@@ -1,0 +1,68 @@
+version: 2
+
+# Schema contract v0.2 (draft, Oct 8 2026) · Lane 3 · freeze Oct 10
+# Traceability tags: [M §n] = Methodology tab section n; [L4] = Lane 4 dashboard requirement;
+# [C n] = convention n in the contract preamble.
+
+sources:
+  - name: raw
+    description: >
+      Landing dataset written by Lane 1's extractor. One table. Lane 1 owns the loader;
+      Lane 2 declares this source and builds staging on top of it. [M §6]
+    database: "{{ var('gcp_project', 'ba882-ai-bubble') }}"
+    schema: raw
+    loaded_at_field: ingested_at
+    freshness:
+      warn_after: {count: 30, period: hour}
+      error_after: {count: 54, period: hour}   # one missed trading day plus the weekend margin
+    tables:
+      - name: prices_raw
+        description: >
+          One row per ticker per trading day for every ticker in basket_members, as served by the
+          price provider. Append-only by run, idempotent on (trade_date, ticker): a re-run of a date
+          merges on the key and never duplicates. [M §6, C 10]
+        columns:
+          - name: trade_date
+            description: Exchange trading date (America/New_York). Partition column. [C 1, C 8]
+            tests: [not_null]
+          - name: ticker
+            description: Uppercase yfinance symbol, e.g. CRWV, ^GSPC. Must exist in basket_members. [C 1, C 9]
+            tests:
+              - not_null
+              - relationships:
+                  to: ref('basket_members')
+                  field: ticker
+          - name: open
+            description: Unadjusted open.
+          - name: high
+            description: Unadjusted intraday high.
+          - name: low
+            description: Unadjusted intraday low.
+          - name: close
+            description: Unadjusted close. Audit only; no signal math reads it. [C 5]
+            tests: [not_null]
+          - name: adj_close
+            description: >
+              Split- and dividend-adjusted close as served by the provider. The only price any
+              downstream table uses. [M §2 daily closing prices, C 5]
+            tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  min_value: 0
+                  inclusive: false
+          - name: volume
+            description: Shares traded; nullable for index symbols.
+          - name: source
+            description: Provider that served this row. [L1 fallback source]
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['yfinance', 'alphavantage', 'tiingo']
+          - name: ingested_at
+            description: UTC timestamp of the load. Freshness column. [C 3]
+            tests: [not_null]
+          - name: run_id
+            description: Airflow run_id that wrote the row, for the observability demo. Nullable for the backfill.
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              combination_of_columns: [trade_date, ticker]
