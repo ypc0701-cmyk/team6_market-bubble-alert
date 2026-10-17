@@ -9,3 +9,4 @@
 | 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Ran 2-year backfill; wrote extractor/Dockerfile and README run section; tested image in Cloud Shell | 11,727 rows; docker run reloaded 3 days with no dupes |
 | 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Added Tiingo fallback to extractor (per-ticker, --force-fallback and --dry-run flags); tested in Cloud Shell | Dry run: Tiingo served 23/24 tickers; ^GSPC not available on Tiingo |
 | 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Wrote dags/prices_daily.py (Airflow 3), Astro project files, credential hook in extractor; validated DAG import in the Astro runtime image | DagBag: 0 import errors |
+| 2026-10-16 | 1 | Claude (Opus 5.5, claude.ai) | Deployed DAG to Astronomer; slimmed image and pinned OpenTelemetry; force_fail param; Slack failure alert; weekday wake schedule; resolved README merge conflict | Scheduled + manual runs green; forced failure posted to #pipeline-alerts |
