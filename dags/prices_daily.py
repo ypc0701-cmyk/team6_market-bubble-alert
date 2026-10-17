@@ -18,6 +18,7 @@ from airflow.sdk import dag, get_current_context, task
     max_active_runs=1,
     default_args={"owner": "lane1", "retries": 2, "retry_delay": timedelta(minutes=5)},
     tags=["lane1", "ingestion"],
+    params={"force_fail": False},  # trigger with force_fail=true to test alerting
 )
 def prices_daily():
 
@@ -31,6 +32,9 @@ def prices_daily():
         from extractor.extract import fetch, to_bigquery, to_gcs
 
         ctx = get_current_context()
+        if ctx["params"].get("force_fail"):
+            from airflow.exceptions import AirflowFailException
+            raise AirflowFailException("Deliberate failure to test alerting (force_fail=true)")
         end = (ctx.get("data_interval_end") or pendulum.now("UTC")).date()
         start = end - timedelta(days=5)  # re-pull a few days so late corrections land; reruns are idempotent
         key = Connection.get("google_cloud_default").extra_dejson["keyfile_dict"]
