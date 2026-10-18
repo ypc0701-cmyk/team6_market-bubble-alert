@@ -1,17 +1,25 @@
 name: ai_bubble_monitor
 version: '0.1.0'
 config-version: 2
+
 profile: ai_bubble_monitor
+
 model-paths: ["models"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
+
 vars:
-  gcp_project: ba882-ai-bubble
+  gcp_project: market-bubble-alert
+
 models:
   ai_bubble_monitor:
+    staging:
+      +schema: staging
+      +materialized: view
     marts:
       +schema: marts
+
 seeds:
   ai_bubble_monitor:
     +schema: marts
