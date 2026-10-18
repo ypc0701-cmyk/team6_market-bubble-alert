@@ -7,3 +7,4 @@
 | 2026-10-12 | 3 | Claude (Fable 5.1, Cowork) | Staged docs/ and dbt/ for this PR; drafted Lane 3 issues | |
 | 2026-10-13 | 1 | Claude (Opus 5.5, claude.ai) | Wrote extractor/extract.py (yfinance to GCS to raw.prices_raw) against contract v0.2; ran and debugged in Cloud Shell | Output verified: 168 rows, no dupes on rerun |
 | 2026-10-17 | 2 | ChatGPT (GPT-6) | dbt setup, staging models, data quality tests, and documentation | Verified with 22 passing dbt checks |
+| 2026-10-18 | 3 | Claude (Fable 5.1, Cowork) | Wrote the four mart models, two intermediates and the dial_explanation macro from the contract; synthetic seven-year scenario plus an independent Python oracle; dbt build in DuckDB and a cell-by-cell diff against the oracle; rebased onto Lane 2 staging with the partial-day rule | Materialization changed to full-rebuild tables; days_listed pre-backfill estimate documented in daily_drawdowns.sql |
