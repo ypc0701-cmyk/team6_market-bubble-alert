@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: stg_prices
+    description: "Clean, typed daily market prices from raw.prices_raw."
+    columns:
+      - name: trade_date
+        data_tests:
+          - not_null
+
+      - name: ticker
+        data_tests:
+          - not_null
+
+      - name: adj_close
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: source
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['yfinance', 'alphavantage', 'tiingo']
+
+      - name: ingested_at
+        data_tests:
+          - not_null
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - trade_date
+              - ticker
