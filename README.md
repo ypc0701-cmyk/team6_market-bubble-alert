@@ -21,7 +21,7 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 
 Streamlit reads the signal marts and shows verdict cards, breadth versus S&P distance-from-high, dial history, member drawdowns, and a ticker table. See [dashboard setup and deployment](dashboard/README.md) for commands, data checks, and the demo handoff.
 
-Team URL: pending Cloud Run deployment and access verification. Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
+App URL: https://market-bubble-dashboard-roeklc77pq-ue.a.run.app (deployed to Cloud Run on Oct 20; access setup in progress, see #52). Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
 
 ## Lane 1: running the extractor
 
@@ -56,8 +56,11 @@ docker run --rm lane1-extractor --start 2024-10-01 --end <today>
 | BigQuery dataset | `staging` | Lane 2 |
 | BigQuery dataset | `marts` | Lane 3 |
 | Service account | `airflow-pipeline@market-bubble-alert.iam.gserviceaccount.com` | Airflow DAG |
+| Service account | `dashboard-runtime@market-bubble-alert.iam.gserviceaccount.com` | Dashboard on Cloud Run |
+| Cloud Run service | `market-bubble-dashboard` (us-east1) | Lane 4 |
+| GCS bucket | `gs://market-bubble-alert-tfstate` (versioned) | Terraform state |
 
-Resources were created manually on Oct 11 to unblock Lane 1 and will be imported into Terraform.
+The landing bucket, the three datasets and `airflow-pipeline` were created by hand on Oct 11 to unblock Lane 1 and imported into Terraform on Oct 20 (see [terraform/README.md](terraform/README.md)). The dashboard service account, the Cloud Run service and the state bucket are managed by hand for Phase 1.
 
 ### IAM
 | Member | Lane | Roles |
@@ -65,15 +68,20 @@ Resources were created manually on Oct 11 to unblock Lane 1 and will be imported
 | Kean | 1 | Viewer, BigQuery Job User, BigQuery Data Editor, Storage Object Admin, Artifact Registry Admin, Service Usage Consumer |
 | Ahrar | 2 | Viewer, BigQuery Job User, BigQuery Data Editor, Service Usage Consumer |
 | Javier | 3 | Viewer, BigQuery Job User, BigQuery Data Editor, Service Usage Consumer |
-| Myhill | 4 | Viewer, BigQuery Job User, BigQuery Data Viewer, Service Usage Consumer |
+| Myhill | 4 | Viewer, BigQuery Job User, BigQuery Data Viewer, Service Usage Consumer, Cloud Run Source Developer, Logs Viewer; Service Account User on `dashboard-runtime` and the Cloud Build service account |
 | Chloe | 5 | Owner |
 | airflow-pipeline (SA) | DAG | BigQuery Data Editor, BigQuery Job User, Storage Object Admin |
+| dashboard-runtime (SA) | Dashboard | BigQuery Job User (project), BigQuery Data Viewer on `marts` only |
+| Compute default SA (Cloud Build) | Build | Cloud Run Builder |
 
 Service Usage Consumer was added on Oct 12: Python client libraries need it when running locally with user credentials.
 
+The dashboard runs as its own service account, which can read `marts` and nothing else: no access to `raw` or `staging`, and no write access anywhere (least privilege; added Oct 20).
+
 ### Local setup
-cat >> docs/ai_log.md <<'EOF'
-| 2026-10-11 | 5 | Claude | GitHub branch protection, labels, milestone and project board setup | |
-| 2026-10-11 | 5 | Claude | GCP project, IAM, service account, bucket, datasets and budget alert setup | |
-| 2026-10-12 | 5 | Claude | Diagnosed 403 on local API calls (missing Service Usage Consumer role) | |
-| 2026-10-16 | 5 | Claude | Service account key handoff for Astronomer; README GCP docs | |
+
+    gcloud auth login
+    gcloud auth application-default login
+    gcloud config set project market-bubble-alert
+
+Service account keys are never committed to this repo. The Astronomer deployment authenticates with a key stored as an Astronomer connection.
