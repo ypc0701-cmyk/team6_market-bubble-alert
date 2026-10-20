@@ -11,10 +11,11 @@ sources:
       Lane 2 declares this source and builds staging on top of it. [M §6]
     database: "{{ var('gcp_project', 'ba882-ai-bubble') }}"
     schema: raw
-    loaded_at_field: ingested_at
-    freshness:
-      warn_after: {count: 30, period: hour}
-      error_after: {count: 54, period: hour}   # one missed trading day plus the weekend margin
+    config:
+      loaded_at_field: ingested_at
+      freshness:
+        warn_after: {count: 96, period: hour}
+        error_after: {count: 120, period: hour}  # accommodates weekends and extended market holidays
     tables:
       - name: prices_raw
         description: >

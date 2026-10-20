@@ -1,5 +1,16 @@
 version: 2
 
+# Membership change procedure:
+# 1. Never delete historical membership rows.
+# 2. To remove a ticker, set removed_date to the first date it is no longer
+#    included, and provide an allowed removed_reason.
+# 3. To add or reclassify a ticker, create a new row with the appropriate
+#    basket, added_date, and added_reason.
+# 4. Keep listing_date as the actual listing date, even when added_date is earlier.
+# 5. Ensure membership periods do not overlap for the same ticker.
+# 6. Run dbt seed --select basket_members and dbt test --select basket_members
+#    before merging the change.
+
 seeds:
   - name: basket_members
     description: >
@@ -7,7 +18,7 @@ seeds:
       ticker in a basket. All 22 tracked symbols live here, so the extractor's ticker list, the
       per-date roster and the "what did we track on date X" question all resolve from one table.
       A name is never removed because it fell; every change carries a date and a reason. Breadth on
-      a date counts only members whose span covers that date. [M §4, M §6, C 9]
+      a date counts only members whose span covers that date. [M Â§4, M Â§6, C 9]
     config:
       column_types:
         ticker: STRING
@@ -31,18 +42,18 @@ seeds:
         description: >
           speculative = the hand-picked tier the signal measures; megacap = the seven large AI
           capital spenders; benchmark = ^GSPC; reference = ARKK, HYG, IEF, SPY, RSP, which appear
-          in no breadth or median computation. [M §2]
+          in no breadth or median computation. [M Â§2]
         tests:
           - not_null
           - accepted_values:
               values: ['speculative', 'megacap', 'benchmark', 'reference']
       - name: profile
-        description: One-line rationale from the founding table (section 4). Nullable for benchmark and reference rows. [M §4]
+        description: One-line rationale from the founding table (section 4). Nullable for benchmark and reference rows. [M Â§4]
       - name: listing_date
         description: >
           First trading day of the symbol. Drives the 20-day reference-high exclusion and the 60-day
           maturity gate; stored explicitly because the two-year backfill would otherwise make every
-          old name look newly listed on the first backfilled day. [M §2]
+          old name look newly listed on the first backfilled day. [M Â§2]
         tests: [not_null]
       - name: added_date
         description: First trade_date on which this span is in force (inclusive). Part of the key.
@@ -50,13 +61,13 @@ seeds:
       - name: removed_date
         description: First trade_date on which this span is no longer in force (exclusive). NULL means current.
       - name: added_reason
-        description: Why the span began. [M §4]
+        description: Why the span began. [M Â§4]
         tests:
           - not_null
           - accepted_values:
               values: ['founding_roster', 'new_listing', 'promotion_to_megacap', 'reference_series']
       - name: removed_reason
-        description: Why the span ended; NULL while current. Falling is deliberately not an allowed value. [M §4]
+        description: Why the span ended; NULL while current. Falling is deliberately not an allowed value. [M Â§4]
         tests:
           - accepted_values:
               values: ['delisting_or_acquisition', 'no_longer_ai_story', 'graduation', 'promotion_to_megacap']
