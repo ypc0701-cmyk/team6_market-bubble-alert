@@ -34,12 +34,16 @@ python -m streamlit run dashboard/app.py \
 
 Open Cloud Shell Web Preview on port 8081.
 
-Production, after the production tables have been built:
+Production data in Cloud Shell:
 
 ```bash
-GCP_PROJECT=market-bubble-alert BQ_DATASET=marts \
-  python -m streamlit run dashboard/app.py \
-  --server.address=0.0.0.0 --server.port=8080
+GCP_PROJECT=market-bubble-alert BQ_DATASET=marts BQ_LOCATION=US \
+python -m streamlit run dashboard/app.py \
+  --server.address=0.0.0.0 \
+  --server.port=8081 \
+  --browser.serverAddress="8081-${WEB_HOST}" \
+  --browser.serverPort=443 \
+  --browser.gatherUsageStats=false
 ```
 
 The app keeps the selected dataset explicit. A production query error remains visible; it does not switch to development data.
@@ -88,7 +92,9 @@ bq query --project_id=market-bubble-alert --location=US \
 
 Confirm that all five tables are listed and the latest signal date and fields match the production page. The per-ticker summary uses that same signal date. Keep the output with the integration notes.
 
-The scheduled production build is tracked in PR #48. Once merged and deployed by Lane 1, it should run dbt build --target prod after ingestion. Confirm a successful real run; a merged PR alone does not establish the state of the warehouse.
+Production data reads were verified in Cloud Shell on 2026-10-20. The captured page shows `market-bubble-alert.marts`, a signal date of 2026-10-19, and a calculation time of 2026-10-20 19:55 UTC. The verdict is Level 2 DIVERGENCE, credit is normal, and 10 of 11 eligible speculative names are broken. This verifies the production UI connection; the SQL output should also be retained for the integration record.
+
+PR #48 (dbt after ingestion) and PR #54 (roster fix and faster builds) are merged. Lane 3 reports a rebuild from main passing 121/121 in under two minutes. Lane 1 still needs to confirm the Astronomer deployment and a successful scheduled ingestion-plus-dbt run. Its service account needs the required dataset-creation and write permissions for the intermediate dataset.
 
 ## Tests without GCP
 
@@ -159,4 +165,4 @@ Official references:
 5. After a successful upstream production build, confirm a later page check reflects the new mart results.
 6. Give Lane 5 the tested URL, screenshots, and a short walkthrough for the rehearsal and fallback video.
 
-Track remaining work in #50, #51, and #52. Live production verification, final audit wording, Cloud Run access, and the demo handoff remain open.
+Track remaining work in #50, #51, and #52. Production data reads are verified in Cloud Shell. The SQL integration record, final audit wording, Cloud Run access, scheduled end-to-end verification, and demo handoff remain open.
