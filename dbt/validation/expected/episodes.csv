@@ -1,0 +1,4 @@
+episode_id,start_date,end_date,is_open,trading_days,divergence_days,max_divergence_run,is_held,held_date,max_breadth,min_spec_median_drawdown,strict_days,armed_since,armed_ceiling_date,quiet_expiry_date,disarm_date,disarm_reason
+EP-2025-05-15,2025-05-15,2026-03-12,False,213,106,63,True,2025-06-04,1.0,-0.6245365822833805,105,2025-05-15,2028-05-15,2027-06-08,2027-06-09,quiet_expiry
+EP-2026-09-14,2026-09-14,2026-10-23,False,30,29,29,True,2026-10-02,0.9090909090909091,-0.33258300506471583,29,2026-09-14,2029-09-14,2028-02-25,2028-02-28,quiet_expiry
+EP-2028-05-31,2028-05-31,2028-07-21,False,37,36,36,True,2028-06-20,0.9090909090909091,-0.3834305161830571,36,2028-05-31,2031-05-31,,2031-06-02,ceiling
