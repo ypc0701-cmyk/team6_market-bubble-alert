@@ -11,3 +11,4 @@
 | 2026-10-15 | 1 | Claude (Opus 5.5, claude.ai) | Wrote dags/prices_daily.py (Airflow 3), Astro project files, credential hook in extractor; validated DAG import in the Astro runtime image | DagBag: 0 import errors |
 | 2026-10-16 | 1 | Claude (Opus 5.5, claude.ai) | Deployed DAG to Astronomer; slimmed image and pinned OpenTelemetry; force_fail param; Slack failure alert; weekday wake schedule; resolved README merge conflict | Scheduled + manual runs green; forced failure posted to #pipeline-alerts |
 | 2026-10-17 | 2 | ChatGPT (GPT-6) | dbt setup, staging models, data quality tests, and documentation | Verified with 22 passing dbt checks |
+| 2026-10-19 | 1 | Claude (Opus 5.5, claude.ai) | Added dbt_build task (dbt build --target prod) after extract_and_load; dbt 1.12 in its own venv in the Astro image; validated project parse with lane3/marts merged | Parse OK, models resolve to staging/marts on prod target |
