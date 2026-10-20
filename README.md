@@ -17,6 +17,12 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 2. Commit and push the branch, then open a PR
 3. One teammate approves, then merge. No direct pushes to main.
 
+## Lane 4: dashboard
+
+Streamlit reads the signal marts and shows verdict cards, breadth versus S&P distance-from-high, dial history, member drawdowns, and a ticker table. See [dashboard setup and deployment](dashboard/README.md) for commands, data checks, and the demo handoff.
+
+Team URL: pending Cloud Run deployment and access verification. Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
+
 ## Lane 1: running the extractor
 
 Daily or any date range (safe to re-run; replaces those dates, never duplicates):
