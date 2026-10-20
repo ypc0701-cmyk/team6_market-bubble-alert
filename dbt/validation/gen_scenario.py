@@ -22,7 +22,11 @@ Timeline (t = trading-day index, 1-based):
   950-980   divergence episode 3                                     -> 'armed' at ~964
   981-999   episode 3 closes
   1000-1800 S&P grinds down 8%/yr (never quiet)                      -> TOPPING until the 36-month ceiling -> 'disarmed_ceiling'
+  1200      SMCI removed from the speculative basket (no_longer_ai_story) -> roster_changed_today, in_force 10
   1800      partial load (four tickers missing)                       -> held back from every mart
+
+Also writes basket_members_scenario.csv: the real seed plus the SMCI removal. Run the oracle and the
+marts against that seed (load_duck.py takes it as a third argument) so the roster logic is exercised.
 """
 import csv
 import math
@@ -132,6 +136,17 @@ for t, dd in enumerate(cal, start=1):
         })
 
 OUT.mkdir(parents=True, exist_ok=True)
+# scenario seed: the real roster plus one removal, so roster_changed_today and in_force are exercised
+with open(OUT / "basket_members_scenario.csv", "w", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=list(members[0].keys()))
+    w.writeheader()
+    for m in members:
+        row = dict(m)
+        if m["ticker"] == "SMCI":
+            row["removed_date"] = cal[1199].isoformat()
+            row["removed_reason"] = "no_longer_ai_story"
+            row["notes"] = "scenario: removed on trading day 1200"
+        w.writerow(row)
 with open(OUT / "prices_raw.csv", "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
     w.writeheader()

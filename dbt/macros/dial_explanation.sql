@@ -9,7 +9,7 @@ concat(
     case when spec_members_valid > 0
          then concat(cast(spec_members_broken as {{ dbt.type_string() }}), ' of ', cast(spec_members_valid as {{ dbt.type_string() }}), ' speculative names broken')
          else 'no speculative member with valid data' end,
-    '; S&P ', cast(round(abs(spx_distance) * 100, 1) as {{ dbt.type_string() }}), '% off its high',
+    '; S&P ', {% if target.type == 'bigquery' %}format('%.1f', abs(spx_distance) * 100){% else %}printf('%.1f', abs(spx_distance) * 100){% endif %}, '% off its high',
     case
         when badge = 'off_pattern' then ' (off-pattern: decline without the junk-first precedent)'
         when badge = 'credit_only' then ' (credit-only: funding stress with no equity pattern)'
