@@ -13,3 +13,8 @@
 | 2026-10-17 | 2 | ChatGPT (GPT-6) | dbt setup, staging models, data quality tests, and documentation | Verified with 22 passing dbt checks |
 | 2026-10-18 | 3 | Claude (Fable 5.1, Cowork) | Wrote the four mart models, two intermediates and the dial_explanation macro from the contract; synthetic seven-year scenario plus an independent Python oracle; dbt build in DuckDB and a cell-by-cell diff against the oracle; rebased onto Lane 2 staging with the partial-day rule | Materialization changed to full-rebuild tables; days_listed pre-backfill estimate documented in daily_drawdowns.sql |
 | 2026-10-20 | 3 | Claude (Fable 5.1, Cowork) | Fixed roster_changed_today (removals undetectable, found in Ahrar's review); int_daily_conditions materialized as a table to stop BigQuery re-evaluating the ephemeral CTE; FORMAT in dial_explanation; added a ticker-removal case to the validation scenario and re-ran the oracle diff | |
+| 2026-10-11 | 5 | Claude | GitHub branch protection, labels, milestone and project board setup | |
+| 2026-10-11 | 5 | Claude | GCP project, IAM, service account, bucket, datasets and budget alert setup | |
+| 2026-10-12 | 5 | Claude | Diagnosed 403 on local API calls (missing Service Usage Consumer role) | |
+| 2026-10-16 | 5 | Claude | Service account key handoff for Astronomer; README GCP docs | |
+| 2026-10-20 | 5 | Claude | Lane progress review, integration session checklist, Terraform import config | |
