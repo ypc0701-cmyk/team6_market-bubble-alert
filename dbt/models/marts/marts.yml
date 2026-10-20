@@ -1,6 +1,10 @@
 version: 2
 
-# Schema contract v0.2 (draft, Oct 8 2026) · Lane 3 marts · freeze Oct 10
+# Schema contract v0.2 · Lane 3 marts · frozen Oct 15 2026
+# Amendments (Oct 18, with the mart models): every mart is rebuilt in full on each run (the 252-day
+# windows make any partition depend on the prior year; 24 tickers x 2 years is small, so a full rebuild
+# is simpler and exactly idempotent; partitioning and clustering kept for the dashboard's queries). The
+# newest trade_date is held back while any in-force ticker is missing (partial provider load).
 # Sign convention [C 4]: every drawdown and distance-from-high is price / high - 1, so 25% below reads -0.25.
 # Windows [C 6]: counted in trading days. A trading day is any trade_date on which ^GSPC has a row.
 # Traceability tags: [M §n] Methodology section; [L4] Lane 4 dashboard requirement; [C n] convention.
@@ -13,8 +17,7 @@ models:
       per (trade_date, ticker). Produces the reference high, the drawdown, and the eligibility flags
       the group math counts. Contains no group-level numbers. [M §2, M §6]
     config:
-      materialized: incremental
-      incremental_strategy: insert_overwrite
+      materialized: table
       partition_by: {field: trade_date, data_type: date}
       cluster_by: [ticker]
     columns:
@@ -84,8 +87,7 @@ models:
       and the watch/stress status, plus the FRED high-yield spread as the stated cross-check.
       One row per trade_date. [M §2, M §6]
     config:
-      materialized: incremental
-      incremental_strategy: insert_overwrite
+      materialized: table
       partition_by: {field: trade_date, data_type: date}
     columns:
       - name: trade_date
@@ -136,8 +138,7 @@ models:
       column the verdict cards show is here, including the credit status copied from credit_daily
       and the templated explanation sentence, so the dashboard performs no logic. [M §2, M §3, M §6, L4]
     config:
-      materialized: incremental
-      incremental_strategy: insert_overwrite
+      materialized: table
       partition_by: {field: trade_date, data_type: date}
     columns:
       - name: trade_date
