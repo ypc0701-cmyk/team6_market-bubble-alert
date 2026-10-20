@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv-dashboard/
 venv/
 .ipynb_checkpoints/
 
@@ -13,6 +14,8 @@ venv/
 *.json
 !package.json
 credentials/
+.streamlit/secrets.toml
+.pytest_cache/
 
 # Terraform
 .terraform/
