@@ -24,11 +24,15 @@ Development:
 
 ```bash
 GCP_PROJECT=market-bubble-alert BQ_DATASET=marts_dev \
-  python -m streamlit run dashboard/app.py \
-  --server.address=0.0.0.0 --server.port=8080
+python -m streamlit run dashboard/app.py \
+  --server.address=0.0.0.0 \
+  --server.port=8081 \
+  --browser.serverAddress="8081-${WEB_HOST}" \
+  --browser.serverPort=443 \
+  --browser.gatherUsageStats=false
 ```
 
-Open Cloud Shell Web Preview on port 8080.
+Open Cloud Shell Web Preview on port 8081.
 
 Production, after the production tables have been built:
 
