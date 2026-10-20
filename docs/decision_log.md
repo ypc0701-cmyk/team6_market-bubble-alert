@@ -8,7 +8,8 @@
 - Alternative considered: Looker, which offers a simpler managed BigQuery connection.
 - Reason: Streamlit gives us control over the verdict cards, event annotations, and member views in Python. The prototype already runs against real development marts.
 - Tradeoff: the team maintains an application image, dependency versions, runtime identity, and access configuration. Cloud Run deployment and team access still need live verification.
-- Review: pending teammate review in the Lane 4 PR.
+- Review: Javier approved PR #53; merged on 2026-10-20.
+- Verification: production data reads were verified in Cloud Shell on 2026-10-20. Cloud Run deployment and team access remain pending.
 
 ### Data and display boundary
 
