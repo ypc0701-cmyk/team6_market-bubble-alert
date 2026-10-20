@@ -1,9 +1,14 @@
 -- int_daily_conditions: the group math and the memoryless conditions of Methodology section 2,
 -- one row per trading day. Shared by episodes and daily_signals (episodes needs cond_divergence
--- and breadth; daily_signals needs episodes), which is why it is split out. Ephemeral: it exists
--- only inside the two marts' compiled SQL. Carries a few helper columns (day_idx, is_close_day,
--- quiet_cum) that are not part of the contract.
-{{ config(materialized='ephemeral') }}
+-- and breadth; daily_signals needs episodes), which is why it is split out. Materialized as a
+-- table in the `intermediate` dataset (not a contract table): as an ephemeral CTE BigQuery
+-- re-evaluated it once per reference and episodes took ~3 minutes. Carries a few helper columns
+-- (day_idx, is_close_day, quiet_cum) that are not part of the contract.
+{{ config(
+    materialized='table',
+    schema='intermediate',
+    partition_by=({'field': 'trade_date', 'data_type': 'date'} if target.type == 'bigquery' else none)
+) }}
 
 with cal as (
     select * from {{ ref('int_trading_calendar') }}
@@ -28,15 +33,26 @@ members as (
 in_force as (
     select
         c.trade_date,
-        sum(case when m.basket = 'speculative' then 1 else 0 end) as spec_members_in_force,
-        max(case when m.basket in ('speculative', 'megacap')
-                  and (m.added_date = c.trade_date or m.removed_date = c.trade_date)
-                 then 1 else 0 end) = 1 as roster_changed_today
+        sum(case when m.basket = 'speculative' then 1 else 0 end) as spec_members_in_force
     from cal as c
     left join members as m
         on m.added_date <= c.trade_date
         and c.trade_date < m.removed_before
         and m.listing_date <= c.trade_date
+    group by c.trade_date
+),
+
+-- Roster events: any speculative or megacap span that starts or ends today [M §4, L4]. Kept apart
+-- from in_force on purpose: a span that ends today is no longer in force today (removed_date is
+-- exclusive), so a removal can only be seen by matching the dates directly.
+roster_events as (
+    select
+        c.trade_date,
+        count(m.ticker) > 0 as roster_changed_today
+    from cal as c
+    left join members as m
+        on m.basket in ('speculative', 'megacap')
+        and (m.added_date = c.trade_date or m.removed_date = c.trade_date)
     group by c.trade_date
 ),
 
@@ -102,7 +118,7 @@ assembled as (
         coalesce(s.members_broken, 0) as spec_members_broken,
         case when coalesce(s.members_valid, 0) > 0 then s.members_broken / s.members_valid end as breadth,
         s.median_drawdown as spec_median_drawdown,
-        coalesce(f.roster_changed_today, false) as roster_changed_today,
+        coalesce(r.roster_changed_today, false) as roster_changed_today,
         coalesce(m.members_valid, 0) as mega_members_valid,
         m.median_drawdown as mega_median_drawdown,
         x.spx_adj_close,
@@ -117,6 +133,7 @@ assembled as (
         a.arkk_drawdown
     from cal as c
     left join in_force as f on f.trade_date = c.trade_date
+    left join roster_events as r on r.trade_date = c.trade_date
     left join basket_math as s on s.trade_date = c.trade_date and s.basket = 'speculative'
     left join basket_math as m on m.trade_date = c.trade_date and m.basket = 'megacap'
     join spx as x on x.trade_date = c.trade_date
