@@ -27,3 +27,24 @@ FROM latest
 LEFT JOIN `market-bubble-alert.marts.daily_drawdowns` AS d
   ON d.trade_date = latest.trade_date
 GROUP BY latest.trade_date;
+
+-- Values displayed in the evidence and market-context panels.
+SELECT
+  trade_date, breadth, spec_median_drawdown, mega_median_drawdown,
+  mega_members_valid, arkk_drawdown, credit_distance, concentration_distance,
+  is_concentration_broken, divergence_run_days, quiet_days_used, armed_ceiling_date,
+  cond_divergence, cond_divergence_strict, cond_deterioration,
+  cond_repricing, cond_washout
+FROM `market-bubble-alert.marts.daily_signals`
+ORDER BY trade_date DESC
+LIMIT 1;
+
+SELECT
+  episode_id, start_date, end_date, is_open, trading_days,
+  max_divergence_run, is_held, held_date, disarm_date, computed_at
+FROM `market-bubble-alert.marts.episodes`
+WHERE start_date <= (
+  SELECT MAX(trade_date) FROM `market-bubble-alert.marts.daily_signals`
+)
+ORDER BY start_date DESC
+LIMIT 5;

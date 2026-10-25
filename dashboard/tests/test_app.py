@@ -14,6 +14,12 @@ ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "dashboard" / "app.py"
 
 
+def table_with(app, *columns):
+    matches = [item.value for item in app.dataframe if set(columns).issubset(item.value.columns)]
+    assert len(matches) == 1, f"Expected one table with columns {columns}"
+    return matches[0]
+
+
 @pytest.fixture
 def run_app(monkeypatch):
     monkeypatch.setenv("GCP_PROJECT", "market-bubble-alert")
@@ -27,20 +33,23 @@ def run_app(monkeypatch):
         & member_frame["basket"].isin(["speculative", "megacap"])
     ].copy()
     member_frame["company_name"] = member_frame["ticker"]
+    episode_frame = pd.read_csv(ROOT / "docs/dummy_rows/episodes.csv")
+    episode_frame["computed_at"] = pd.Timestamp.now(tz="UTC")
 
-    def run(signal_rows=None, member_rows=None, fail=None, dataset="marts_dev"):
+    def run(signal_rows=None, member_rows=None, episode_rows=None, fail=None, dataset="marts_dev"):
         st.cache_data.clear()
         monkeypatch.setenv("BQ_DATASET", dataset)
         signals = signal_frame.copy() if signal_rows is None else signal_rows
         members = member_frame.copy() if member_rows is None else member_rows
+        episodes = episode_frame.copy() if episode_rows is None else episode_rows
         calls = []
 
         def query(sql, **kwargs):
             calls.append((sql, kwargs))
-            is_signal = "daily_signals" in sql
-            if fail == "signals" or (fail == "members" and not is_signal):
+            kind = "signals" if "daily_signals" in sql else ("episodes" if ".episodes`" in sql else "members")
+            if fail == kind:
                 raise RuntimeError("Warehouse unavailable")
-            rows = signals if is_signal else members
+            rows = {"signals": signals, "members": members, "episodes": episodes}[kind]
             return Mock(result=Mock(return_value=rows.to_dict("records")))
 
         monkeypatch.setattr(bigquery, "Client", Mock(return_value=Mock(query=query)))
@@ -49,6 +58,7 @@ def run_app(monkeypatch):
 
     run.signals = signal_frame
     run.members = member_frame
+    run.episodes = episode_frame
     return run
 
 
@@ -63,7 +73,7 @@ def test_renders_warehouse_verdict_for_each_level(run_app, level, label):
     assert not app.error
     assert app.metric[0].value == f"{level} / 5"
     assert "Warehouse explanation." in [item.value for item in app.info]
-    assert len(app.get("vega_lite_chart")) == 3
+    assert len(app.get("vega_lite_chart")) == 5
 
 
 @pytest.mark.parametrize("badge", ["off_pattern", "credit_only"])
@@ -78,7 +88,7 @@ def test_unarmed_badges_and_roster_events(run_app, badge):
     assert not app.exception
     assert app.metric[2].value == "Not armed"
     assert any("Pattern qualifier:" in item.value for item in app.caption)
-    assert "Roster changed" in app.dataframe[0].value.iloc[0]["Event"]
+    assert "Roster changed" in table_with(app, "Event").iloc[0]["Event"]
 
 
 def test_member_query_uses_verdict_date_and_missing_values_stay_missing(run_app):
@@ -90,7 +100,7 @@ def test_member_query_uses_verdict_date_and_missing_values_stay_missing(run_app)
     assert not app.error
     params = calls[1][1]["job_config"].query_parameters
     assert params[0].value == run_app.signals["trade_date"].max()
-    table = app.dataframe[0].value
+    table = table_with(app, "ticker", "drawdown")
     assert table.iloc[-1]["ticker"] == "CRWV"
     assert pd.isna(table.iloc[-1]["drawdown"])
     assert table.iloc[-1]["is_broken"] == "Not available"
@@ -115,7 +125,8 @@ def test_signal_query_failure_shows_no_verdict(run_app):
 def test_member_failure_is_visible_and_does_not_hide_verdict(run_app):
     app, _ = run_app(fail="members")
     assert not app.exception
-    assert len(app.metric) == 4
+    assert app.metric[0].label == "Dial level"
+    assert table_with(app, "Confirmed", "start_date").shape[0] > 0
     assert any("Member data could not be loaded" in item.value for item in app.error)
 
 
@@ -133,7 +144,7 @@ def test_production_uses_only_production_tables(run_app):
     app, calls = run_app(dataset="marts")
     assert not app.exception
     assert not app.error
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert all("market-bubble-alert.marts." in sql for sql, _ in calls)
     assert all("marts_dev" not in sql for sql, _ in calls)
 
@@ -143,3 +154,99 @@ def test_invalid_dataset_is_rejected_before_query(run_app):
     assert not app.exception
     assert not calls
     assert any("Choose marts_dev" in item.value for item in app.error)
+
+
+def test_evidence_and_comparison_use_warehouse_values(run_app):
+    rows = run_app.signals.copy()
+    rows.loc[rows.index[-1], ["breadth", "spec_median_drawdown", "mega_median_drawdown", "credit_distance"]] = [0.12345, -0.321, -0.11, -0.0123]
+    app, _ = run_app(signal_rows=rows)
+    assert not app.exception
+    assert not app.error
+    metrics = {item.label: item.value for item in app.metric}
+    assert metrics["Speculative breadth"] == "12.3%"
+    assert metrics["Speculative median drawdown"] == "-32.1%"
+    assert metrics["Credit ratio distance"] == "-1.2%"
+    comparison = table_with(app, "Group").set_index("Group")
+    assert comparison.loc["Megacap median", "drawdown"] == pytest.approx(-11.0)
+    assert pd.isna(comparison.loc["ARKK reference ETF", "Eligible members"])
+
+
+def test_conditions_are_displayed_without_recomputing_them(run_app):
+    rows = run_app.signals.copy()
+    rows.loc[rows.index[-1], "breadth"] = 0.0
+    rows.loc[rows.index[-1], "cond_divergence"] = True
+    rows.loc[rows.index[-1], "cond_repricing"] = False
+    app, _ = run_app(signal_rows=rows)
+    table = table_with(app, "Condition").set_index("Condition")
+    assert table.loc["Divergence", "Today"] == "Met"
+    assert table.loc["Repricing", "Today"] == "Not met"
+
+
+def test_missing_context_values_are_not_zero(run_app):
+    rows = run_app.signals.copy()
+    for column in ["breadth", "spec_median_drawdown", "mega_median_drawdown", "spx_distance", "credit_distance", "concentration_distance", "arkk_drawdown"]:
+        rows[column] = None
+    rows["cond_divergence"] = None
+    app, _ = run_app(signal_rows=rows)
+    assert not app.exception
+    assert not app.error
+    metrics = {item.label: item.value for item in app.metric}
+    assert metrics["Speculative breadth"] == "N/A"
+    assert metrics["Credit ratio distance"] == "N/A"
+    assert table_with(app, "Group")["drawdown"].isna().all()
+    assert table_with(app, "Condition").iloc[0]["Today"] == "Not available"
+    assert any("Credit and concentration history is not available" in item.value for item in app.info)
+
+
+def test_episode_query_uses_verdict_date_and_keeps_unconfirmed_dates_empty(run_app):
+    rows = run_app.episodes.copy()
+    latest_index = rows["start_date"].idxmax()
+    rows.loc[latest_index, "is_held"] = False
+    rows.loc[latest_index, ["held_date", "end_date", "disarm_date"]] = None
+    app, calls = run_app(episode_rows=rows)
+    assert not app.exception
+    assert not app.error
+    episode_call = next(call for call in calls if ".episodes`" in call[0])
+    assert episode_call[1]["job_config"].query_parameters[0].value == run_app.signals["trade_date"].max()
+    table = table_with(app, "Confirmed", "start_date")
+    assert table.iloc[0]["Confirmed"] == "No"
+    assert pd.isna(table.iloc[0]["held_date"])
+    assert pd.isna(table.iloc[0]["end_date"])
+
+
+def test_empty_episode_history_is_visible_without_hiding_the_dashboard(run_app):
+    app, _ = run_app(episode_rows=pd.DataFrame())
+    assert not app.exception
+    assert not app.error
+    assert app.metric[0].label == "Dial level"
+    assert any("No divergence episodes" in item.value for item in app.info)
+
+
+def test_episode_failure_does_not_hide_verdict_or_members(run_app):
+    app, _ = run_app(fail="episodes")
+    assert not app.exception
+    assert app.metric[0].label == "Dial level"
+    assert not table_with(app, "ticker", "drawdown").empty
+    assert any("Episode history could not be loaded" in item.value for item in app.error)
+
+
+def test_member_switch_keeps_global_speculative_verdict(run_app):
+    app, _ = run_app()
+    before = app.metric[3].value
+    app.sidebar.selectbox[1].set_value("megacap").run()
+    assert not app.exception
+    assert not app.error
+    assert app.metric[3].label == "Speculative broken / eligible"
+    assert app.metric[3].value == before
+    expected = set(run_app.members.loc[run_app.members["basket"] == "megacap", "ticker"])
+    assert set(table_with(app, "ticker", "drawdown")["ticker"]) == expected
+
+
+def test_refresh_clears_episode_cache_with_other_marts(run_app):
+    app, calls = run_app()
+    assert len(calls) == 3
+    app.button[0].click().run()
+    assert not app.exception
+    assert not app.error
+    assert len(calls) == 6
+    assert sum(".episodes`" in sql for sql, _ in calls) == 2
