@@ -19,9 +19,11 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 
 ## Lane 4: dashboard
 
-Streamlit reads the signal marts and shows verdict cards, breadth versus S&P distance-from-high, dial history, member drawdowns, and a ticker table. See [dashboard setup and deployment](dashboard/README.md) for commands, data checks, and the demo handoff.
+Streamlit reads the signal marts and shows verdict cards, signal evidence, breadth versus S&P distance, dial history, basket comparison, credit and concentration trends, member drawdowns and returns, and episode history. Signal calculations stay in dbt.
 
-App URL: https://market-bubble-dashboard-roeklc77pq-ue.a.run.app (deployed to Cloud Run on Oct 20; access setup in progress, see #52). Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
+Team URL: https://market-bubble-dashboard-41316181588.us-east1.run.app. The original Cloud Run release and team access were verified on Oct 20. PR #60 is merged; the enhanced revision and qualifier follow-up still need recorded Cloud Run production verification. Development uses marts_dev and production uses marts.
+
+See [dashboard setup](dashboard/README.md) and [Lane 4 handoff](docs/lane4_handoff.md). #50 is complete; close #51 and #52 only after their remaining acceptance criteria have evidence.
 
 ## Lane 1: running the extractor
 
