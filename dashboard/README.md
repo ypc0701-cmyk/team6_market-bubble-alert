@@ -62,14 +62,25 @@ Dependencies are separate from the Airflow project's root requirements.
 | View | Source |
 |---|---|
 | Verdict, explanation, badge, credit, history | daily_signals |
+| Signal evidence, basket medians, credit and concentration trends | daily_signals |
 | Drawdown and six-month return | daily_drawdowns |
 | Company names and active membership | basket_members |
+| Divergence spans and confirmation/disarming dates | episodes |
 
 The verdict uses the latest date available in daily_signals. The member query uses that exact date as a DATE parameter and joins the membership span in force on that date. A missing member price stays visible as N/A. The company name is metadata; every analytical measure comes from dbt.
 
 The chart filter changes the historical display, not the latest verdict. Arming and roster changes from daily_signals are marked on the dial history. The member table is sorted by drawdown, worst first, with missing values last.
 
-The open page checks every 60 seconds. Cached warehouse results expire after 60 seconds. Refresh data clears both caches. The dashboard does not run ingestion or dbt.
+### Additional views
+
+- Signal evidence shows speculative breadth, the speculative median drawdown, S&P distance from high and credit-ratio distance. Today's condition flags and the armed-clock fields come directly from daily_signals. They explain the verdict without calculating a new signal in the app.
+- Basket comparison puts the speculative and megacap medians next to ARKK's drawdown. ARKK is one reference ETF, not a basket median or a dial input. Eligible-member counts and missing values stay explicit.
+- Credit and concentration plots use HYG / IEF and SPY / RSP distances from their own 126-trading-day highs. The History selector changes these plots along with the existing trend charts.
+- Episode history reads the current episodes mart. Its start-date query is parameterized with the latest signal date; the aggregate span records reflect the current episode build and are not a historical snapshot controlled by History. Open or unconfirmed dates stay empty. A closed episode does not necessarily mean that the armed clock has expired.
+
+The Members selector changes only the member chart and table. The global verdict and speculative broken/eligible count keep their meaning when megacap is selected.
+
+The open page checks every 60 seconds. Cached warehouse results expire after 60 seconds. Refresh data clears the signal, member and episode caches. An unavailable episode query shows a separate error while the verdict and other available views remain visible. The dashboard does not run ingestion or dbt.
 
 ### Freshness and limitations
 
@@ -103,11 +114,11 @@ python -m pip install -r dashboard/requirements-dev.txt
 python -m pytest dashboard/tests -q
 ```
 
-The tests mock BigQuery with the repository's dummy rows. They cover six dial levels, both badges, unarmed and roster events, null prices and returns, empty and failed queries, stale results, and production dataset selection. They validate the UI, not the signal algorithm or production credentials.
+The tests mock BigQuery with the repository's dummy rows. They cover six dial levels, both badges, unarmed and roster events, null prices and returns, empty and failed queries, stale results, production dataset selection, evidence values, episode dates, member switching and refresh of all three caches. They validate the UI, not the signal algorithm or production credentials.
 
 ## Cloud Run deployment
 
-Deployment status: pending. Add the verified team URL to the root README after deployment.
+The original release is deployed at https://market-bubble-dashboard-41316181588.us-east1.run.app. Teammates confirmed browser access and interaction on 2026-10-20. The new evidence, context and episode views still need production verification after this change is merged and deployed. Coordinate the root README URL and IAM documentation with Chloe's PR #58.
 
 Coordinate these setup items with Chloe:
 - Enable Cloud Run, Cloud Build, and Artifact Registry APIs.
@@ -121,7 +132,7 @@ The application uses ADC. Cloud Run supplies its attached runtime identity; no d
 After the PR is reviewed and merged, deploy the dashboard folder from main. Set DASHBOARD_SERVICE_ACCOUNT to the actual runtime account Chloe configured:
 
 ```bash
-export DASHBOARD_SERVICE_ACCOUNT="REPLACE_WITH_CONFIRMED_SERVICE_ACCOUNT_EMAIL"
+export DASHBOARD_SERVICE_ACCOUNT="dashboard-runtime@market-bubble-alert.iam.gserviceaccount.com"
 
 gcloud run deploy market-bubble-dashboard \
   --project=market-bubble-alert \
@@ -165,4 +176,4 @@ Official references:
 5. After a successful upstream production build, confirm a later page check reflects the new mart results.
 6. Give Lane 5 the tested URL, screenshots, and a short walkthrough for the rehearsal and fallback video.
 
-Track remaining work in #50, #51, and #52. Production data reads are verified in Cloud Shell. The SQL integration record, final audit wording, Cloud Run access, scheduled end-to-end verification, and demo handoff remain open.
+Track remaining work in #51 and #52; #50 is complete. The original release's production reads and team interaction are verified on Cloud Run. The additional views need a live production check after redeployment. The final audit wording, scheduled end-to-end verification and demo handoff remain open.
