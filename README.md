@@ -21,7 +21,7 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 
 Streamlit reads the signal marts and shows verdict cards, breadth versus S&P distance-from-high, dial history, member drawdowns, and a ticker table. See [dashboard setup and deployment](dashboard/README.md) for commands, data checks, and the demo handoff.
 
-App URL: https://market-bubble-dashboard-roeklc77pq-ue.a.run.app (deployed to Cloud Run on Oct 20; access setup in progress, see #52). Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
+App URL: https://market-bubble-dashboard-roeklc77pq-ue.a.run.app (Cloud Run, public, no login required). Development uses `marts_dev`; the deployed app must use `marts`. Work is tracked in #50, #51, and #52.
 
 ## Lane 1: running the extractor
 
