@@ -205,3 +205,12 @@ Entries are ordered by the date the decision was taken. "M §n" points to the se
 - Decision: The landing bucket, the `raw`, `staging` and `marts` datasets and the DAG service account are managed by Terraform, with remote state in `gs://market-bubble-alert-tfstate` (versioned).
 - How we got there: the resources were created by hand on Oct 11 so Lane 1 could load data at once, then imported on Oct 20 with Terraform import blocks; the import changed nothing on the live resources (PR #56).
 - Tradeoff: IAM bindings, the dashboard service account and the Cloud Run service are still managed by hand for Phase 1; moving them into Terraform is a Phase 2 candidate.
+
+## Public dashboard access
+
+- Recorded: 2026-10-27
+- Owner: Chloe, Lane 5
+- Decision: The Cloud Run dashboard is public; anyone with the link can view it without logging in.
+- Alternative considered: Identity-Aware Proxy limited to BU accounts, as first planned in the Lane 4 deployment notes.
+- Reason: the page shows only public market data and our derived signal, and the professor and peers need to open it without setup.
+- Safeguard: the service runs as `dashboard-runtime`, which can read the `marts` dataset and nothing else and cannot write anywhere, so public access cannot change data. `max-instances=2` and the $50 budget alert bound cost.
