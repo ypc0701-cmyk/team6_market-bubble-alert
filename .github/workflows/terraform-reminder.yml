@@ -1,0 +1,53 @@
+name: Terraform reminder
+
+# Runs only on PRs that change Terraform code (README edits are ignored).
+# It does not touch GCP: it reminds the author to run terraform plan and
+# fails until the plan summary is pasted into the PR description.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - "terraform/**"
+      - "!terraform/**/*.md"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment and check for a plan summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- terraform-reminder -->';
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: pr.number,
+            });
+            if (!comments.some(c => (c.body || '').includes(marker))) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: pr.number,
+                body: [
+                  marker,
+                  '⚠️ **This PR changes Terraform code in `terraform/`.**',
+                  '',
+                  '1. Run `terraform plan` on this branch in Cloud Shell (see `terraform/README.md`).',
+                  '2. Paste the summary line into the PR description, e.g. `Plan: 1 to add, 0 to change, 0 to destroy.`',
+                  '3. Reviewer: check the plan shows only the intended change.',
+                  '4. After merge, Lane 5 runs `terraform apply` from `main`.',
+                ].join('\n'),
+              });
+            }
+
+            const body = pr.body || '';
+            const hasPlan = /Plan:\s*\d+\s+to\s+\w+|No changes/i.test(body);
+            if (!hasPlan) {
+              core.setFailed('Paste the terraform plan summary line (e.g. "Plan: 1 to add, 0 to change, 0 to destroy.") into the PR description.');
+            } else {
+              core.info('Plan summary found in the PR description.');
+            }
