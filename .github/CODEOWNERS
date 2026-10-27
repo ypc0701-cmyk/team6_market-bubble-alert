@@ -1,0 +1,4 @@
+# Lane 5 reviews every change to infrastructure code and its guard workflow.
+/terraform/                                @ypc0701-cmyk
+/.github/workflows/terraform-reminder.yml  @ypc0701-cmyk
+/.github/CODEOWNERS                        @ypc0701-cmyk
