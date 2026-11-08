@@ -21,7 +21,7 @@ Daily pipeline: yfinance → GCS → BigQuery → dbt → signal marts → dashb
 
 Streamlit reads the signal marts and shows verdict cards, signal evidence, breadth versus S&P distance, dial history, basket comparison, credit and concentration trends, member drawdowns and returns, and episode history. Signal calculations stay in dbt.
 
-Team URL: https://market-bubble-dashboard-41316181588.us-east1.run.app. The original Cloud Run release and team access were verified on Oct 20. PR #60 is merged; the enhanced revision and qualifier follow-up still need recorded Cloud Run production verification. Development uses marts_dev and production uses marts.
+Team URL: https://market-bubble-dashboard-41316181588.us-east1.run.app (Cloud Run, public, no login required). The original Cloud Run release and team access were verified on Oct 20. PR #60 is merged; the enhanced revision and qualifier follow-up still need recorded Cloud Run production verification. Development uses marts_dev and production uses marts.
 
 See [dashboard setup](dashboard/README.md) and [Lane 4 handoff](docs/lane4_handoff.md). #50 is complete; close #51 and #52 only after their remaining acceptance criteria have evidence.
 
