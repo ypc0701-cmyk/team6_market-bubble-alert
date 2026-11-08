@@ -90,7 +90,7 @@ The page displays the trading date, calculation time in UTC, and last check time
 
 The date check allows updates until 7pm America/New_York and excludes weekends. It is a display heuristic: US exchange holidays can cause warnings, and this is not proof of DAG health or a substitute for Lane 2 source freshness tests.
 
-Badges are displayed from the mart. A basket-audit flag shows the ARKK disagreement warning. The final AI-specific qualifier still needs Lane 3 wording confirmation; the app currently asks the reader to review basket construction before using a reading market-wide.
+Badges are displayed from the mart. A basket-audit flag shows the ARKK disagreement warning. Methodology section 4, merged in PR #61, defines the AI-specific qualifier. When basket_audit_flag is true and every active, listed roster symbol has a price on the verdict date, the app displays: "AI-specific: the broader speculative market (ARKK) does not confirm this break." The coverage check includes the benchmark and reference series. It uses adjusted-close availability, so a priced young listing with no usable drawdown does not count as a missing price. Incomplete, empty or failed member reads retain the audit warning. The app does not change the dial, badge or armed state.
 
 ## Verify production data
 
@@ -105,7 +105,7 @@ Confirm that all five tables are listed and the latest signal date and fields ma
 
 Production data reads were verified in Cloud Shell on 2026-10-20. The captured page shows `market-bubble-alert.marts`, a signal date of 2026-10-19, and a calculation time of 2026-10-20 19:55 UTC. The verdict is Level 2 DIVERGENCE, credit is normal, and 10 of 11 eligible speculative names are broken. This verifies the production UI connection; the SQL output should also be retained for the integration record.
 
-PR #48 (dbt after ingestion) and PR #54 (roster fix and faster builds) are merged. Lane 3 reports a rebuild from main passing 121/121 in under two minutes. Lane 1 still needs to confirm the Astronomer deployment and a successful scheduled ingestion-plus-dbt run. Its service account needs the required dataset-creation and write permissions for the intermediate dataset.
+PR #48 (dbt after ingestion) and PR #54 (roster fix and faster builds) are merged. Lane 3 reports a rebuild from main passing 121/121 in under two minutes. Issue #44 records that Lane 1 redeployed main including #59 and confirmed both extract_and_load and dbt_build succeeded. That upstream integration is complete. The enhanced Cloud Run revision still needs a retained UI-versus-SQL check after deployment.
 
 ## Tests without GCP
 
@@ -114,11 +114,11 @@ python -m pip install -r dashboard/requirements-dev.txt
 python -m pytest dashboard/tests -q
 ```
 
-The tests mock BigQuery with the repository's dummy rows. They cover six dial levels, both badges, unarmed and roster events, null prices and returns, empty and failed queries, stale results, production dataset selection, evidence values, episode dates, member switching and refresh of all three caches. They validate the UI, not the signal algorithm or production credentials.
+The tests mock BigQuery with the repository's dummy rows. They cover six dial levels, both badges, unarmed and roster events, null prices and returns, empty and failed queries, stale results, production dataset selection, evidence values, episode dates, member switching and refresh of all three caches. They also check full-roster price coverage, the AI-specific qualifier with young listings, and warning fallback on missing or failed price reads. The closeout run passed 29 checks. They validate the UI, not the signal algorithm or production credentials.
 
 ## Cloud Run deployment
 
-The original release is deployed at https://market-bubble-dashboard-41316181588.us-east1.run.app. Teammates confirmed browser access and interaction on 2026-10-20. The new evidence, context and episode views still need production verification after this change is merged and deployed. Coordinate the root README URL and IAM documentation with Chloe's PR #58.
+The original release is deployed at https://market-bubble-dashboard-41316181588.us-east1.run.app. Teammates confirmed browser access and interaction on 2026-10-20. PR #60 (the additional views), PR #58 (URL and IAM documentation), and PR #61 (methodology wording) are merged. The additional views and the qualifier follow-up still need a recorded check of the deployed Cloud Run revision. A Cloud Shell preview reading production marts is not proof that the Cloud Run revision has been updated.
 
 Coordinate these setup items with Chloe:
 - Enable Cloud Run, Cloud Build, and Artifact Registry APIs.
@@ -129,7 +129,7 @@ Coordinate these setup items with Chloe:
 
 The application uses ADC. Cloud Run supplies its attached runtime identity; no downloaded service-account key belongs in the image.
 
-After the PR is reviewed and merged, deploy the dashboard folder from main. Set DASHBOARD_SERVICE_ACCOUNT to the actual runtime account Chloe configured:
+After the qualifier follow-up is reviewed and merged, deploy the dashboard folder from main. Set DASHBOARD_SERVICE_ACCOUNT to the actual runtime account Chloe configured:
 
 ```bash
 export DASHBOARD_SERVICE_ACCOUNT="dashboard-runtime@market-bubble-alert.iam.gserviceaccount.com"
@@ -176,4 +176,4 @@ Official references:
 5. After a successful upstream production build, confirm a later page check reflects the new mart results.
 6. Give Lane 5 the tested URL, screenshots, and a short walkthrough for the rehearsal and fallback video.
 
-Track remaining work in #51 and #52; #50 is complete. The original release's production reads and team interaction are verified on Cloud Run. The additional views need a live production check after redeployment. The final audit wording, scheduled end-to-end verification and demo handoff remain open.
+Track remaining work in #51 and #52; #50 is complete. The original release's production reads and team interaction are verified on Cloud Run. The additional views need a live production check after redeployment. The remaining release evidence and the issue-closing criteria are tracked in [Lane 4 handoff](../docs/lane4_handoff.md).

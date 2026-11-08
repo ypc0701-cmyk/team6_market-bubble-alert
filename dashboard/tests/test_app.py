@@ -29,8 +29,7 @@ def run_app(monkeypatch):
     signal_frame["computed_at"] = pd.Timestamp.now(tz="UTC")
     member_frame = pd.read_csv(ROOT / "docs/dummy_rows/daily_drawdowns.csv")
     member_frame = member_frame.loc[
-        (member_frame["trade_date"] == "2026-10-07")
-        & member_frame["basket"].isin(["speculative", "megacap"])
+        member_frame["trade_date"] == "2026-10-07"
     ].copy()
     member_frame["company_name"] = member_frame["ticker"]
     episode_frame = pd.read_csv(ROOT / "docs/dummy_rows/episodes.csv")
@@ -137,7 +136,7 @@ def test_old_calculations_and_basket_audit_are_flagged(run_app):
     app, _ = run_app(signal_rows=rows)
     assert not app.exception
     assert any("72 hours" in item.value for item in app.warning)
-    assert any("Basket audit" in item.value for item in app.warning)
+    assert any("AI-specific:" in item.value for item in app.info)
 
 
 def test_production_uses_only_production_tables(run_app):
@@ -250,3 +249,41 @@ def test_refresh_clears_episode_cache_with_other_marts(run_app):
     assert not app.error
     assert len(calls) == 6
     assert sum(".episodes`" in sql for sql, _ in calls) == 2
+
+
+
+@pytest.mark.parametrize("ticker", ["CRWV", "ARKK", "^GSPC"])
+def test_audit_qualifier_keeps_warning_when_any_active_price_is_missing(run_app, ticker):
+    rows = run_app.signals.copy()
+    rows["basket_audit_flag"] = True
+    members = run_app.members.copy()
+    members.loc[members["ticker"] == ticker, "adj_close"] = None
+    app, _ = run_app(signal_rows=rows, member_rows=members)
+    assert not app.exception
+    assert not any("AI-specific:" in item.value for item in app.info)
+    assert any("Price coverage is incomplete" in item.value for item in app.warning)
+    assert app.metric[0].value == f"{int(rows.iloc[-1]['dial_level'])} / 5"
+
+
+def test_young_listing_with_a_price_does_not_block_ai_specific_qualifier(run_app):
+    rows = run_app.signals.copy()
+    rows["basket_audit_flag"] = True
+    members = run_app.members.copy()
+    members.loc[members["ticker"] == "CRWV", ["drawdown", "return_6m"]] = None
+    members.loc[members["ticker"] == "CRWV", "is_signal_eligible"] = False
+    app, _ = run_app(signal_rows=rows, member_rows=members)
+    assert not app.exception
+    assert any("AI-specific: the broader speculative market (ARKK) does not confirm this break." == item.value for item in app.info)
+    assert not any("Basket audit:" in item.value for item in app.warning)
+
+
+@pytest.mark.parametrize("fail,empty", [("members", False), (None, True)])
+def test_unverified_price_coverage_never_claims_ai_specific(run_app, fail, empty):
+    rows = run_app.signals.copy()
+    rows["basket_audit_flag"] = True
+    members = pd.DataFrame() if empty else None
+    app, _ = run_app(signal_rows=rows, member_rows=members, fail=fail)
+    assert not app.exception
+    assert not any("AI-specific:" in item.value for item in app.info)
+    assert any("Basket audit:" in item.value for item in app.warning)
+    assert app.metric[0].value == f"{int(rows.iloc[-1]['dial_level'])} / 5"
