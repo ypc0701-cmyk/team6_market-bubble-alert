@@ -48,3 +48,27 @@ WHERE start_date <= (
 )
 ORDER BY start_date DESC
 LIMIT 5;
+
+
+
+-- The AI-specific qualifier requires a price for every active, listed roster symbol.
+-- A missing drawdown for a priced young listing does not fail price coverage.
+WITH latest AS (
+  SELECT MAX(trade_date) AS trade_date
+  FROM `market-bubble-alert.marts.daily_signals`
+)
+SELECT
+  latest.trade_date,
+  COUNT(*) AS active_listed_symbols,
+  COUNTIF(d.adj_close IS NOT NULL) AS symbols_with_prices,
+  COUNTIF(d.adj_close IS NULL) AS missing_prices,
+  STRING_AGG(IF(d.adj_close IS NULL, m.ticker, NULL), ', ' ORDER BY m.ticker) AS missing_tickers
+FROM latest
+JOIN `market-bubble-alert.marts.basket_members` AS m
+  ON m.added_date <= latest.trade_date
+ AND (m.removed_date IS NULL OR latest.trade_date < m.removed_date)
+ AND m.listing_date <= latest.trade_date
+LEFT JOIN `market-bubble-alert.marts.daily_drawdowns` AS d
+  ON d.trade_date = latest.trade_date
+ AND d.ticker = m.ticker AND d.basket = m.basket
+GROUP BY latest.trade_date;

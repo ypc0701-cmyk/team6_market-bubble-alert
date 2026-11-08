@@ -72,17 +72,17 @@ def load_signals(project, dataset, location):
 
 @st.cache_data(ttl=60)
 def load_members(project, dataset, location, as_of):
-    # Start with the active roster so a missing price remains a visible N/A row.
+    # Load every active, listed symbol so the qualifier checks price coverage.
+    # show_members filters this result to the selected basket for display.
     return query_frame(project, location, f"""
         SELECT m.ticker, m.company_name, m.basket,
-               d.drawdown, d.return_6m, d.is_broken,
+               d.adj_close, d.drawdown, d.return_6m, d.is_broken,
                d.is_signal_eligible, d.computed_at
         FROM `{project}.{dataset}.basket_members` AS m
         LEFT JOIN `{project}.{dataset}.daily_drawdowns` AS d
           ON m.ticker = d.ticker AND m.basket = d.basket
          AND d.trade_date = @as_of
-        WHERE m.basket IN ('speculative', 'megacap')
-          AND m.added_date <= @as_of
+        WHERE m.added_date <= @as_of
           AND (m.removed_date IS NULL OR @as_of < m.removed_date)
           AND m.listing_date <= @as_of
         ORDER BY d.drawdown ASC NULLS LAST, m.ticker
@@ -115,6 +115,25 @@ def percent(value):
 
 def flag_text(value, yes="Met", no="Not met"):
     return "Not available" if pd.isna(value) else (yes if bool(value) else no)
+
+
+def show_basket_qualifier(latest, members):
+    if pd.isna(latest["basket_audit_flag"]) or not bool(latest["basket_audit_flag"]):
+        return
+    # Price availability is separate from IPO maturity and usable drawdowns.
+    coverage_complete = (
+        members is not None and not members.empty
+        and members["adj_close"].notna().all()
+    )
+    if coverage_complete:
+        st.info("AI-specific: the broader speculative market (ARKK) does not confirm this break.")
+        st.caption("Qualifier applies to the AI tier only. The warehouse dial, badge and armed state are unchanged.")
+    else:
+        st.warning(
+            "Basket audit: the selected AI basket differs materially from ARKK. "
+            "Price coverage is incomplete or unavailable for the verdict date. "
+            "Review the data and basket before using this reading."
+        )
 
 
 def show_evidence(latest):
@@ -212,6 +231,7 @@ def show_episodes(episodes):
     st.dataframe(
         table[["start_date", "end_date", "Status", "trading_days", "max_divergence_run", "Confirmed", "held_date", "disarm_date"]],
         hide_index=True, width="stretch", key="episode_history", column_config={
+            "Confirmed": "Confirmed (held)",
             "start_date": st.column_config.DateColumn("Episode start", format="YYYY-MM-DD"),
             "end_date": st.column_config.DateColumn("Episode end", format="YYYY-MM-DD"),
             "trading_days": "Span trading days", "max_divergence_run": "Longest divergence run",
@@ -219,7 +239,7 @@ def show_episodes(episodes):
             "disarm_date": st.column_config.DateColumn("Disarmed on", format="YYYY-MM-DD"),
         },
     )
-    st.caption("Confirmation requires 15 consecutive divergence trading days. A closed episode can still leave the armed clock active; use the verdict's armed-since date for the current state.")
+    st.caption("Confirmation (held) requires 15 consecutive divergence trading days. A closed episode can still leave the armed clock active; use the verdict's armed-since date for the current state.")
     calculated = pd.to_datetime(episodes["computed_at"], utc=True, errors="coerce").max()
     if pd.notna(calculated):
         st.caption(f"Episode records calculated at: {calculated:%Y-%m-%d %H:%M UTC}. This panel shows the current episode build and is not changed by the History filter.")
@@ -360,6 +380,11 @@ def dashboard():
     latest = signals.iloc[-1]
     as_of = latest["trade_date"].date()
     show_freshness(latest)
+    try:
+        members = load_members(PROJECT, DATASET, LOCATION, as_of)
+    except Exception:
+        LOGGER.exception("Could not load member drawdowns")
+        members = None
 
     cards = st.columns(4)
     cards[0].metric("Dial level", f"{count(latest['dial_level'])} / 5")
@@ -373,11 +398,7 @@ def dashboard():
     badge = latest["badge"]
     if pd.notna(badge):
         st.caption("Pattern qualifier: " + BADGE_LABELS.get(badge, str(badge)))
-    if pd.notna(latest["basket_audit_flag"]) and bool(latest["basket_audit_flag"]):
-        st.warning(
-            "Basket audit: the selected AI basket differs materially from ARKK. "
-            "Review basket construction before using this reading as a market-wide signal."
-        )
+    show_basket_qualifier(latest, members)
 
     show_evidence(latest)
     history = signals if history_days == "All" else signals.loc[
@@ -385,15 +406,12 @@ def dashboard():
     ]
     show_history(history)
     show_market_context(latest, history)
-    try:
-        members = load_members(PROJECT, DATASET, LOCATION, as_of)
-        if members.empty:
-            st.info("No member data are available for the verdict date.")
-        else:
-            show_members(members, as_of)
-    except Exception:
-        LOGGER.exception("Could not load member drawdowns")
+    if members is None:
         st.error("Member data could not be loaded for the verdict date. The verdict above is from daily_signals.")
+    elif members.empty:
+        st.info("No member data are available for the verdict date.")
+    else:
+        show_members(members, as_of)
 
     try:
         episodes = load_episodes(PROJECT, DATASET, LOCATION, as_of)
@@ -410,7 +428,7 @@ def dashboard():
         "2 DIVERGENCE, 3 TOPPING, 4 REPRICING, and 5 WASHOUT. Breadth measures how many "
         "eligible speculative names are at least 25% below their reference highs. Compare it "
         "with the S&P's distance from its high, then inspect member drawdowns and credit status. "
-        "Badges qualify unusual patterns; an audit warning calls for checking the selected basket. "
+        "Badges qualify unusual patterns. With complete prices, an ARKK disagreement is labeled AI-specific; otherwise check the data and basket. "
         "N/A means unavailable, and a historical reading describes its displayed date."
     )
 
