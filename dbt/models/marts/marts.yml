@@ -42,14 +42,19 @@ models:
           benchmark calendar, not from the first backfilled row. Drives the two young-listing rules. [M §2]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: 1}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
       - name: reference_window_days
         description: >
           Number of trading days that fed reference_high: the trailing 252 trading days including
           today, minus any day with days_listed <= 20. 0 while days_listed <= 20. [M §2, M §6]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: 0, max_value: 252}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 252
       - name: reference_high
         description: >
           Highest adj_close over the reference window. NULL while reference_window_days = 0, so an
@@ -57,7 +62,11 @@ models:
       - name: drawdown
         description: adj_close / reference_high - 1. NULL when reference_high is NULL. [M §2, C 4]
         tests:
-          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+                inclusive: true
       - name: is_mature
         description: days_listed >= 60. A ticker with fewer than 60 trading days contributes nothing to signal math. [M §2]
         tests: [not_null]
@@ -100,12 +109,18 @@ models:
         description: hyg_adj_close / ief_adj_close. [M §2]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: 0, inclusive: false}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
       - name: ratio_window_days
         description: Trading days that fed ratio_high_126 (less than 126 only at the start of the backfill).
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: 1, max_value: 126}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 126
       - name: ratio_high_126
         description: Highest credit_ratio over the trailing 126 trading days including today. [M §2]
         tests: [not_null]
@@ -113,7 +128,11 @@ models:
         description: credit_ratio / ratio_high_126 - 1. [M §2, C 4]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+                inclusive: true
       - name: credit_status
         description: >
           normal when credit_distance > -0.03; watch when <= -0.03 and > -0.06; stress when <= -0.06.
@@ -157,7 +176,11 @@ models:
       - name: breadth
         description: spec_members_broken / spec_members_valid. NULL when spec_members_valid = 0. [M §2]
         tests:
-          - dbt_utils.accepted_range: {min_value: 0, max_value: 1, inclusive: true}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+                inclusive: true
       - name: spec_median_drawdown
         description: Median drawdown across valid speculative members. NULL when none are valid. [M §2]
       - name: roster_changed_today
@@ -183,7 +206,11 @@ models:
         description: spx_adj_close / spx_reference_high - 1. "Within 5% of its high" is spx_distance > -0.05. [M §2, C 4]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: -1, max_value: 0, inclusive: true}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+                inclusive: true
 
       # --- concentration ----------------------------------------------------------------------
       - name: concentration_ratio
@@ -249,7 +276,9 @@ models:
         description: Consecutive trading days, ending today, on which cond_divergence was TRUE; 0 when FALSE today. [M §3 confirmation period]
         tests:
           - not_null
-          - dbt_utils.accepted_range: {min_value: 0}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
       - name: is_held_today
         description: divergence_run_days >= 15. The confirmation period has been met as of today. [M §3]
         tests: [not_null]
@@ -275,7 +304,11 @@ models:
           Quiet trading days counted from armed_since through today for the armed episode (378 = 18
           quiet months at 21 trading days per month). NULL when not armed. [M §3, quiet-month decision]
         tests:
-          - dbt_utils.accepted_range: {min_value: 0, max_value: 378, inclusive: true}
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 378
+                inclusive: true
       - name: armed_ceiling_date
         description: armed_since + 36 calendar months. Armed never survives past it. NULL when not armed. [M §3]
       - name: armed_state_change
