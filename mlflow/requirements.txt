@@ -1,0 +1,5 @@
+# Pinned: MLflow 2.22.0 fails to start with SQLAlchemy 2.1 (ImportError in mlflow/store/db/utils.py),
+# so SQLAlchemy is held at 2.0.x. Training clients should use the same MLflow version.
+mlflow==2.22.0
+SQLAlchemy==2.0.57
+google-cloud-storage==3.17.1
