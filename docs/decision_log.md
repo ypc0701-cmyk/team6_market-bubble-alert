@@ -224,3 +224,12 @@ Entries are ordered by the date the decision was taken. "M §n" points to the se
 - Reason: Cloud SQL bills for every hour it runs, even when idle, against a $50 project budget, while our load is one weekly training job and a few people browsing. The bucket setup costs close to nothing when idle.
 - Tradeoff: SQLite on a bucket mount supports one writer only, so parallel training jobs could fail with "database is locked", and the first request after idle has a cold start. The bucket is versioned (old versions kept 7 days) so a damaged database can be restored. If we need parallel writers, move the metadata to Cloud SQL; the server image and artifact bucket stay the same.
 - Check: tested locally on Nov 13 with MLflow 2.22.0 (SQLite metadata, artifacts proxied through the server); not yet deployed.
+
+## Public model API
+
+- Recorded: 2026-11-13
+- Owner: Chloe, Lane 5
+- Decision: The model API (`model-api` on Cloud Run) is public; anyone with the URL can call it without logging in. It serves the latest weekly scores from `marts.model_scores` and reads a CSV of dummy rows until that table exists. Defined in `terraform/api.tf`.
+- Alternative considered: a private service like MLflow, with each caller sending an identity token.
+- Reason: the Phase 2 brief has reviewers call the API during evaluation, and the scores are derived from public market data.
+- Safeguard: the service runs as `model-api`, which can run queries and read the `marts` dataset only, with no write access anywhere, the same limits as `dashboard-runtime`. At most 2 instances, and results are cached for 10 minutes so repeated calls do not re-query BigQuery. Every response says whether it came from dummy data or the warehouse.
