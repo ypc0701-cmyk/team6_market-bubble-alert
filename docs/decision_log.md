@@ -224,3 +224,78 @@ Entries are ordered by the date the decision was taken. "M §n" points to the se
 - Reason: Cloud SQL bills for every hour it runs, even when idle, against a $50 project budget, while our load is one weekly training job and a few people browsing. The bucket setup costs close to nothing when idle.
 - Tradeoff: SQLite on a bucket mount supports one writer only, so parallel training jobs could fail with "database is locked", and the first request after idle has a cold start. The bucket is versioned (old versions kept 7 days) so a damaged database can be restored. If we need parallel writers, move the metadata to Cloud SQL; the server image and artifact bucket stay the same.
 - Check: tested locally on Nov 13 with MLflow 2.22.0 (SQLite metadata, artifacts proxied through the server); not yet deployed.
+## Phase 2 rules (Lane 3)
+
+These entries were written before any universe ticker was selected and before any model was trained. "C3 §n" points to `docs/schema_contract_v0.3.md`. The numbering R1 to R8 is what the contract's trace tags refer to. Javier took decisions R1, R3, R4 and R8 on 2026-11-16 from options prepared with Claude; the options and reasons are below.
+
+## R1 · The universe is drawn by rule from AI-named ETFs
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: The Phase 2 universe is the union of the holdings of every ETF that meets all of these on the snapshot date: listed on a US exchange; "AI" or "Artificial Intelligence" in the fund's name; net assets of at least $1 billion as published by the issuer; not leveraged, inverse, single-stock or option-income. Holdings are taken from each issuer's own holdings file. A holding enters the universe when it is a common stock or ADR trading on NYSE or Nasdaq, closed above $2, averaged at least $5 million a day in dollar volume over the prior 60 trading days, and has at least 60 trading days of history. Cash, derivatives and private positions are dropped. When two share classes of one company are held, the one with the higher dollar volume is kept.
+- Snapshot date: the first trading day after the pull request carrying this entry is merged to main. The date, the qualifying ETFs with their net assets, and the holdings files are committed with the seed, so the order "rule first, list second" can be checked from git history.
+- Expected to qualify (checked on fund-tracker sites on Nov 16, to be confirmed from issuer figures on the snapshot date): AIQ, BAI, ARTY, BOTZ, CHAT, IGPT, AGIX, IVES. The list is whatever the rule returns that day.
+- Alternatives considered: (a) AIQ and ARTY only, the two largest index funds: cleanest, but they share many holdings and may leave too few names; (b) the same rule at $500 million, which adds robotics funds whose holdings are industrial companies; (c) index-tracking funds only, which avoids manager discretion but is a second judgment call on top of the rule.
+- Reason: a one-sentence mechanical rule means nobody on the team chooses a fund or a stock. That is the point of Phase 2: testing whether our signal depends on our own picks.
+- Tradeoff: three of the expected funds are actively managed, so part of the universe is what managers like today. The price and liquidity conditions are also re-checked on every weekly date (C3 §2, `is_model_eligible`), so a name that only became liquid recently does not contribute old rows.
+- Refresh: none during Phase 2. A later refresh is a new logged decision with a new snapshot date.
+
+## R2 · Our 11 never train the model and never feed its features
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: Any ticker with a speculative span in `basket_members` is excluded from `universe_members` by a seed test, from training, validation and test rows by `role`, and from `universe_breadth`. Our 11 are scored by the finished model as out-of-sample targets. The official dial level is not a model input.
+- Reason: several of our names are held by AI ETFs, so the ETF rule alone would pull them into training. The roster was hand-picked in October 2026 after most names had broken (M §5); a model that saw them, directly or through a basket-level feature, would learn our picks.
+- Tradeoff: megacap members of our Phase 1 roster (NVDA, MSFT and others) do enter the universe when an ETF holds them. They were chosen as the market's largest AI names, a rule anyone would reproduce, so they are treated as ordinary universe members.
+
+## R3 · The label: a 20% fall at any point in the next 60 trading days
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: For a stock on a weekly date, the label is 1 if its lowest adjusted close over the next 60 trading days is at least 20% below that date's adjusted close, otherwise 0. The fall is absolute, with no adjustment for the market. The label is empty until 60 forward trading days exist.
+- Alternatives considered: other thresholds (15%, 25%, 30%) and horizons (20 or 120 days); the close at the end of the window in place of the lowest close; a fall measured relative to the S&P 500.
+- Reason: the team agreed this label in PR #68 and the API field is built on it. The lowest close counts a stock that fell 25% and recovered, which is what a risk warning should count and how the dial already reads drawdowns. An absolute fall is what a holder experiences and is easy to explain.
+- Pre-registered check: before any model is trained, the share of 1s is computed on training rows only. If it is between 10% and 40%, the label stands. Above 40%, the threshold moves to 25%; below 10%, to 15%. The check is run once more on the new threshold and the result is logged here either way. No other change to the label is allowed after results are seen.
+- Tradeoff: an absolute label lets the model score well by recognizing market-wide sell-offs, and the training period has one large one (2022). The evaluation reports results by year for that reason (R7).
+
+## R4 · One time split, fixed in advance
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: Train on weekly dates 2021-01-08 through 2024-06-28. Validate on 2024-10-04 through 2025-06-27. Test on 2025-10-03 through the last date with a final label (about 2026-08-21 at freeze). The weeks between sets are unused, so no label window in one set overlaps the next set (at least 60 trading days). Validation is for tuning and for choosing between models. The test period is scored once.
+- Alternatives considered: a longer test period starting in 2025 with training ending in 2023; walk-forward evaluation with several folds.
+- Reason: training keeps the 2022 sell-off, the only bear market in the data. The test period is the stretch in which our dial has been armed, which is the period the project is about. Walk-forward is more rigorous and is listed as a next step; it does not fit the time left.
+- Tradeoff: the test period holds about 46 weeks, fewer than four non-overlapping 60-day windows. Every test metric is reported with a block-bootstrap interval and the intervals will be wide.
+- Note: training starts in January 2021 because the 252-day window needs a year of the January 2020 backfill. Weekly retraining in production uses all labeled data; this split governs the evaluation report only.
+
+## R5 · Twelve features, all available for the whole training period
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: The model inputs are the twelve columns listed in C3 §2 under `weekly_features`: drawdown from the 252-day high; 20, 60 and 120-day returns; 60-day volatility; volume against its 60-day average; 120-day beta to the S&P 500 and to ARKK; days listed (capped at five years); S&P distance from its high; credit ratio distance from its high; breadth of the universe. A row is scored only with 126 trading days of history and every input present.
+- Change from the proposal: the official dial level is removed. It exists only from late 2024 and is computed from our 11, so it could not cover 2021 to 2024 rows and would break R2.
+- Reason: a feature missing for most of the training period teaches the model nothing reliable, and every input must be computable from prices dated on or before the row's date.
+- Tradeoff: `universe_breadth` is computed over today's universe, so in past years it describes the stocks that later became ETF holdings. Stated as a known limit (R7).
+
+## R6 · How the model is judged, and which model is served
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Decision: Four models are compared: drawdown only, volatility only, logistic regression, boosted trees. Metrics are AUC, precision in the top 10% of scores, Brier score and a calibration table, on the validation and test periods, each next to the base rate. Intervals are 90%, from a block bootstrap that resamples whole weeks in blocks of 13 (about 60 trading days), 1,000 times. The better of the two ML models on validation AUC is the candidate. It "beats the baselines" only if, on the test period, the bootstrap interval of its AUC minus the best baseline's AUC lies above zero. If it does, it is served; otherwise the best baseline is served and the report says so.
+- Reason: weekly rows of one stock share most of their label window, and all stocks share the same weeks, so rows are far from independent. Resampling whole blocks of weeks keeps that dependence in the interval. Fixing the pass rule now removes the temptation to pick a favorable metric later.
+- Tradeoff: with a short test period the rule is strict and the likely honest outcome is "not distinguishable from the baselines". The proposal already accepts that as a valid result.
+
+## R7 · Known limits: what is measured and what is only stated
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3
+- Measured and reported next to the results: (1) regime dependence, by reporting the base rate and AUC by calendar year and the share of training positives that fall in 2022; (2) hindsight in the universe, by repeating the test-period evaluation on names that already had five years of history in January 2021, a group that today's ETF fashion selected less; (3) our 11 against the universe, as the distribution of their percentile ranks.
+- Stated, with direction of bias, because we cannot measure it: survivorship. Stocks that were delisted or dropped from ETFs before the snapshot are absent, so past falls are understated and the base rate is biased down. Past ETF holdings would be needed to measure this and are not available to us.
+
+## R8 · Training engine: BigQuery ML (proposed)
+
+- Recorded: 2026-11-16
+- Owner: Javier, Lane 3, with Ahrar (Lane 2) and Chloe (Lane 5); open under #94 until both agree
+- Proposal: train and score in BigQuery ML (`LOGISTIC_REG`, `BOOSTED_TREE_CLASSIFIER`) from dbt, with a short Python step in the weekly Airflow task that logs parameters, metrics, the snapshot date and the model version to MLflow. The baselines are single-feature logistic regressions so all four models go through the same path. The evaluation in R6 runs in Python on `model_predictions`.
+- Alternative considered: scikit-learn in a Python job, which logs to MLflow natively but needs its own container, data export and scheduling.
+- Reason: the data never leaves the warehouse, Lane 2 already owns dbt, and the course covers BigQuery ML. The tables are small (roughly 100 to 150 stocks × 300 weeks), so cost is negligible; Lane 5 confirms under #90.

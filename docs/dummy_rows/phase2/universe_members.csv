@@ -1,0 +1,10 @@
+ticker,company_name,source_etfs,n_source_etfs,listing_date,snapshot_date,added_date,removed_date,added_reason,removed_reason,notes
+NVDA,Nvidia,AIQ|ARTY|BOTZ|CHAT|IGPT,5,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+AVGO,Broadcom,AIQ|ARTY|CHAT,3,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+ORCL,Oracle,AIQ|CHAT,2,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+AMD,Advanced Micro Devices,AIQ|ARTY|CHAT|IGPT,4,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+TSM,Taiwan Semiconductor (ADR),AIQ|ARTY,2,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+PLTR,Palantir,AIQ|ARTY|CHAT|IGPT,4,2020-09-30,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+MU,Micron,AIQ|ARTY|IGPT,3,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+DELL,Dell Technologies,AIQ,1,2020-01-02,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
+ARM,Arm Holdings (ADR),ARTY|CHAT,2,2023-09-14,2026-11-17,2020-01-01,,etf_snapshot,,"DUMMY placeholder, not the selected universe"
