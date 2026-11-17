@@ -215,6 +215,15 @@ Entries are ordered by the date the decision was taken. "M §n" points to the se
 - Reason: the page shows only public market data and our derived signal, and the professor and peers need to open it without setup.
 - Safeguard: the service runs as `dashboard-runtime`, which can read the `marts` dataset and nothing else and cannot write anywhere, so public access cannot change data. `max-instances=2` and the $50 budget alert bound cost.
 
+## MLflow hosting
+
+- Recorded: 2026-11-13
+- Owner: Chloe, Lane 5
+- Decision: The MLflow tracking server runs on Cloud Run (scales to zero, at most one instance). Run metadata is a SQLite file in a GCS bucket mounted into the container; artifacts go to the same bucket. The service is private: only granted members and the `airflow-pipeline` account can call it. Defined in `terraform/mlflow.tf`.
+- Alternative considered: Cloud SQL (PostgreSQL) as the metadata store, the standard production setup.
+- Reason: Cloud SQL bills for every hour it runs, even when idle, against a $50 project budget, while our load is one weekly training job and a few people browsing. The bucket setup costs close to nothing when idle.
+- Tradeoff: SQLite on a bucket mount supports one writer only, so parallel training jobs could fail with "database is locked", and the first request after idle has a cold start. The bucket is versioned (old versions kept 7 days) so a damaged database can be restored. If we need parallel writers, move the metadata to Cloud SQL; the server image and artifact bucket stay the same.
+- Check: tested locally on Nov 13 with MLflow 2.22.0 (SQLite metadata, artifacts proxied through the server); not yet deployed.
 ## Phase 2 rules (Lane 3)
 
 These entries were written before any universe ticker was selected and before any model was trained. "C3 §n" points to `docs/schema_contract_v0.3.md`. The numbering R1 to R8 is what the contract's trace tags refer to. Javier took decisions R1, R3, R4 and R8 on 2026-11-16 from options prepared with Claude; the options and reasons are below.
