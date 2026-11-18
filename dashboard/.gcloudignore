@@ -3,3 +3,7 @@
 !requirements.txt
 !Dockerfile
 !.dockerignore
+!pages/
+!pages/**
+!fixtures/
+!fixtures/**
