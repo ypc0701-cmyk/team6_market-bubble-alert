@@ -177,3 +177,35 @@ Official references:
 6. Give Lane 5 the tested URL, screenshots, and a short walkthrough for the rehearsal and fallback video.
 
 Track remaining work in #51 and #52; #50 is complete. The original release's production reads and team interaction are verified on Cloud Run. The additional views need a live production check after redeployment. The remaining release evidence and the issue-closing criteria are tracked in [Lane 4 handoff](../docs/lane4_handoff.md).
+
+## Phase 2 preview (#85)
+
+Run from the repository root:
+
+```bash
+streamlit run dashboard/pages/2_Phase_2_Risk.py
+```
+
+This preview needs no GCP credentials. In the normal multipage app it is also
+available from the sidebar. All numbers are explicitly marked as dummy data.
+Fixtures under `dashboard/fixtures/phase2/` are unmodified copies from PR #99
+commit `b4c2ef46440bf35c94195fa80c438f29679127c5`; they are not a selected universe.
+Refresh these copies together when the contract changes. Production scores and
+API fallback are tracked separately in #86; this page currently reads CSV only.
+
+The model card intentionally leaves training time unavailable until `trained_at`
+is supplied. It matches evaluation to model version and test/universe population,
+and does not infer a statistical win from a higher AUC point estimate.
+
+Cloud Shell preview (allows only this session's preview origin):
+
+```bash
+python -m streamlit run dashboard/pages/2_Phase_2_Risk.py \
+  --server.address=0.0.0.0 --server.port=8080 \
+  --server.corsAllowedOrigins="https://8080-${WEB_HOST}" \
+  --browser.gatherUsageStats=false
+```
+
+The dial is the latest reading on or before the selected score date; no later
+reading is substituted. Model evaluation is explicitly retrospective. The page
+includes stock probability history and a test comparison with simple baselines.

@@ -30,3 +30,9 @@
 | 2026-11-13 | 5 | Claude (Opus 5.5, Cowork) | Drafted the MLflow server for #88: Dockerfile, terraform/mlflow.tf (Artifact Registry, bucket, service account, Cloud Run), mlflow/README.md and the "MLflow hosting" decision log entry | Server tested locally with MLflow 2.22.0 (found and pinned an SQLAlchemy 2.1 incompatibility); Terraform not run yet, plan to be pasted in the PR |
 | 2026-11-08 | 3 | Claude (Opus 5.5, Cowork) | Brainstormed Phase 2 options with Javier and drafted the Nov 8 Phase 2 proposal (PR #67, closed, replaced by #68) | Labeling revised after Javier flagged that training on our 11 names would compound basket bias |
 | 2026-11-11 | 3 | Claude (Opus 5.5, Cowork) | Reviewed merged Phase 2 proposal (#68); drafted docs/phase2_plan.md (lanes, dependencies, milestones, schedule) from it | Flagged dial-level feature coverage, our 11 inside ETF holdings, hindsight universe and overlapping labels as Lane 3 rule items |
+
+### 2026-11-18 · Lane 4 Phase 2 preview
+- Reviewed PR #99 and build risk, robustness and model-card panels against its dummy rows.
+- Added missing-score and first-week UI checks, and container include rules.
+- All preview results are fictional. Training time remains unavailable pending contract clarification.
+- Live data integration and production deployment remain pending.
