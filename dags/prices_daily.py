@@ -1,5 +1,8 @@
 """Lane 1 daily pipeline: yfinance (Tiingo fallback) -> GCS -> BigQuery raw.prices_raw.
 
+Tickers: marts.basket_members plus marts.universe_members (contract v0.3 §1 item 1). Until
+universe_members is seeded, the run loads the basket only, exactly as in Phase 1.
+
 Runs weekdays at 22:00 UTC (6pm ET), after US market close.
 Needs on the deployment: Airflow connection google_cloud_default (service account key)
 and secret env vars TIINGO_API_KEY and SLACK_WEBHOOK_URL.
@@ -56,7 +59,7 @@ def prices_daily():
         from airflow.sdk import Connection
         from google.oauth2 import service_account
 
-        from extractor.extract import fetch, to_bigquery, to_gcs
+        from extractor.extract import fetch, load, load_tickers
 
         ctx = get_current_context()
         if ctx["params"].get("force_fail"):
@@ -68,9 +71,9 @@ def prices_daily():
         creds = service_account.Credentials.from_service_account_info(
             key if isinstance(key, dict) else json.loads(key))
 
-        df = fetch(start, end, ctx["run_id"])
-        uris = to_gcs(df, credentials=creds)
-        to_bigquery(uris, sorted(df["trade_date"].unique()), credentials=creds)
+        tickers = load_tickers(start, end, credentials=creds)  # basket_members + universe_members
+        df = fetch(start, end, ctx["run_id"], tickers=tickers)
+        load(df, credentials=creds)
         return {"rows": len(df), "tickers": int(df["ticker"].nunique()),
                 "sources": sorted(df["source"].unique().tolist())}
 
