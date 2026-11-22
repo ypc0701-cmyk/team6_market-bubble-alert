@@ -1,0 +1,4 @@
+trade_date,univ_members_valid,univ_members_broken,universe_breadth,universe_median_drawdown,cond_divergence,is_armed,armed_since,universe_dial_level,universe_dial_label,official_dial_level,dials_agree,computed_at
+2026-11-11,118,41,0.3475,-0.13,false,false,,0,CALM,2,false,2026-11-14T02:00:00+00:00
+2026-11-12,118,43,0.3644,-0.14,false,false,,0,CALM,2,false,2026-11-14T02:00:00+00:00
+2026-11-13,118,42,0.3559,-0.14,false,false,,0,CALM,2,false,2026-11-14T02:00:00+00:00
