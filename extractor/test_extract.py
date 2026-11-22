@@ -39,7 +39,7 @@ def test_load_tickers_reads_both_tables(monkeypatch):
     fake = FakeBQ({"basket_members": BASKET, "universe_members": UNIVERSE})
     monkeypatch.setattr(ex.bigquery, "Client", lambda **k: fake)
     assert len(ex.load_tickers(date(2026, 11, 16), date(2026, 11, 20))) == 30
-    assert all("removed_date IS NULL OR removed_date > @start" in q for q, _ in fake.queries)
+    assert all("SAFE_CAST(CAST(removed_date AS STRING) AS DATE) > @start" in q for q, _ in fake.queries)
 
 
 def test_universe_not_seeded_loads_basket_only(monkeypatch):

@@ -47,11 +47,14 @@ SCHEMA = [
 ]
 
 # A span is "in force" during [start, end] if it began on or before end and had not ended by start.
+# The casts accept DATE or STRING columns: a seed whose removed_date is empty in every row
+# gets typed as STRING, and an empty string means "still in force".
 MEMBERS_SQL = """
 SELECT DISTINCT UPPER(ticker) AS ticker
 FROM `{table}`
-WHERE added_date <= @end
-  AND (removed_date IS NULL OR removed_date > @start)
+WHERE SAFE_CAST(CAST(added_date AS STRING) AS DATE) <= @end
+  AND (SAFE_CAST(NULLIF(CAST(removed_date AS STRING), '') AS DATE) IS NULL
+       OR SAFE_CAST(CAST(removed_date AS STRING) AS DATE) > @start)
 """
 
 
