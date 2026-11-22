@@ -2,3 +2,7 @@
 !app.py
 !requirements.txt
 !Dockerfile
+!pages/
+!pages/**
+!fixtures/
+!fixtures/**
