@@ -17,6 +17,7 @@ random.seed(882)
 OUT = pathlib.Path(__file__).parent / "phase2"
 OUT.mkdir(exist_ok=True)
 NOW = datetime(2026, 11, 14, 2, 0, tzinfo=timezone.utc).isoformat()
+TRAINED = datetime(2026, 11, 13, 23, 0, tzinfo=timezone.utc).isoformat()  # trained_at of dummy-0
 SNAPSHOT = date(2026, 11, 17)
 AS_OF = [date(2026, 8, 14), date(2026, 11, 6), date(2026, 11, 13)]
 SPLIT = {AS_OF[0]: "test", AS_OF[1]: "unlabeled", AS_OF[2]: "unlabeled"}
@@ -82,7 +83,7 @@ for i, d in enumerate(AS_OF):
             continue  # no row before 60 trading days of history
         dd = min(0.0, dd0 + random.uniform(-0.04, 0.04) * (2 - i))
         px = round(price * (1 + dd) / (1 + dd0), 2)
-        eligible = dl >= 126
+        screened = dl >= 126  # history, price and liquidity screen (dummy prices and ADV all pass)
         r = {
             "as_of": d.isoformat(), "ticker": t, "role": role, "adj_close": px, "days_listed": dl,
             "adv_20d_usd": round(random.uniform(0.2, 9.0) * 1e8, 0),
@@ -97,12 +98,13 @@ for i, d in enumerate(AS_OF):
             "days_listed_capped": min(dl, 1260),
             "spx_distance": [-0.012, -0.021, -0.018][i],
             "credit_distance": [-0.004, -0.011, -0.009][i],
+            "is_screen_eligible": str(screened).lower(),
             "universe_breadth": None,
-            "is_model_eligible": str(eligible).lower(),
+            "is_model_eligible": str(screened).lower(),
             "computed_at": NOW,
         }
         week.append(r)
-    univ = [r for r in week if r["role"] == "universe" and r["is_model_eligible"] == "true"]
+    univ = [r for r in week if r["role"] == "universe" and r["is_screen_eligible"] == "true"]
     breadth = round(sum(r["drawdown_252"] <= -0.25 for r in univ) / len(univ), 4)
     for r in week:
         r["universe_breadth"] = breadth
@@ -131,7 +133,7 @@ for r in features:
         p = min(0.97, max(0.01, base + random.uniform(-0.06, 0.06)))
         preds.append({
             "as_of": r["as_of"], "ticker": r["ticker"], "role": r["role"], "model_name": m,
-            "model_version": "dummy-0", "prob_drop_20pct_60d": round(p, 3),
+            "model_version": "dummy-0", "trained_at": TRAINED, "prob_drop_20pct_60d": round(p, 3),
             "split": SPLIT[date.fromisoformat(r["as_of"])], "scored_at": NOW,
         })
 write("model_predictions.csv", preds)
@@ -149,7 +151,7 @@ for d in AS_OF[1:]:
         scores.append({
             "ticker": p["ticker"], "as_of": p["as_of"],
             "prob_drop_20pct_60d": p["prob_drop_20pct_60d"], "rank_in_universe": rank,
-            "model_version": "dummy-0", "model_name": SERVED, "role": p["role"],
+            "model_version": "dummy-0", "trained_at": TRAINED, "model_name": SERVED, "role": p["role"],
             "universe_size": len(univ),
             "pct_rank_in_universe": round(min(1.0, rank / len(univ)), 4),
             "prob_change_1w": round(p["prob_drop_20pct_60d"] - prev[p["ticker"]], 3) if p["ticker"] in prev else "",
@@ -170,7 +172,7 @@ for m in MODELS:
         ]
         for metric, value, half in rows:
             ev.append({
-                "model_name": m, "model_version": "dummy-0", "split": "test", "population": pop,
+                "model_name": m, "model_version": "dummy-0", "trained_at": TRAINED, "split": "test", "population": pop,
                 "metric": metric, "value": round(value, 3),
                 "ci_low": round(value - half, 3) if half else "",
                 "ci_high": round(value + half, 3) if half else "",

@@ -10,7 +10,7 @@ The agreed design is in [phase2_proposal.md](phase2_proposal.md) (PR #68). Where
 
 1. **Tracked symbols (amends C9).** A tracked symbol is any ticker in `basket_members` or `universe_members`. The extractor loads the union. The `relationships` test on `raw.prices_raw.ticker` must accept the union, and that change merges before the first universe load, otherwise `dbt build` fails and `daily_signals` stops updating (Lane 1, issue #79).
 2. **The official dial is isolated from the universe.** The partial-load hold-back in `int_trading_calendar` keeps reading `basket_members` only, so a missing universe ticker never delays the official dial.
-3. **Phase 1 marts do not move.** The backfill to January 2020 adds older rows for `^GSPC`, ARKK, HYG, IEF, SPY, RSP and for basket tickers that also sit in the universe. `int_trading_calendar` takes `cal_start` from the first day in the warehouse, so without a guard the Phase 1 marts would grow history before 2024-10-01 and `days_listed` would change. The Phase 1 calendar is floored at 2024-10-01. Acceptance: `daily_signals`, `daily_drawdowns`, `credit_daily` and `episodes` are row-for-row identical before and after the backfill.
+3. **Phase 1 marts do not move.** The backfill to January 2020 adds older rows for `^GSPC`, ARKK, HYG, IEF, SPY, RSP and for basket tickers that also sit in the universe. `int_trading_calendar` takes `cal_start` from the first day in the warehouse, so without a guard the Phase 1 calendar would start in January 2020 and `days_listed`, the 252-day windows and every mart built on them would change. The Phase 1 calendar is floored at 2023-10-02, the current `cal_start` (the first day in prod `raw.prices_raw`, checked by Lane 1 on Nov 17). The extra year before 2024-10-01 fills the 252-day reference window, so a floor at 2024-10-01 would itself move the marts. The floor is the dbt var `phase1_cal_floor` in `int_trading_calendar` (owner Lane 3, merged with this contract, before the backfill). Phase 2 tables read their own calendar from the same `^GSPC` days without the floor, so their windows reach back to January 2020. Acceptance: `daily_signals`, `daily_drawdowns`, `credit_daily` and `episodes` are row-for-row identical before and after the backfill.
 4. **Weekly grain.** Phase 2 feature, label and score tables have one row per ticker per week. The week's date column is `as_of` (DATE): the last trading day of the calendar week, which is Friday unless Friday is a market holiday. `as_of` matches the field the model API already serves.
 5. **Windows** are trading days on the `^GSPC` calendar, end at `as_of` inclusive, and read adjusted close, as in v0.2 (C5, C6). Nothing is forward-filled.
 6. **No look-ahead.** A feature on `as_of` reads prices dated on or before `as_of`. A label on `as_of` reads prices dated strictly after `as_of`. Each has a dbt test.
@@ -58,13 +58,16 @@ Rows exist for every universe member and every speculative basket member once th
 | days_listed_capped | INT64 | no | least(days_listed, 1260), so "listed long ago" reads the same for every old name | R5 |
 | spx_distance | FLOAT64 | no | ^GSPC adj_close / trailing 252-day high - 1; same value for every ticker that week | R5 |
 | credit_distance | FLOAT64 | no | HYG/IEF ratio / trailing 126-day high - 1 | R5 |
-| universe_breadth | FLOAT64 | yes | Share of model-eligible `universe` rows that week with drawdown_252 <= -0.25. Our 11 are not in it | R2, R5 |
-| is_model_eligible | BOOL | no | days_listed >= 126 AND unadjusted close > 2 AND adv_20d_usd >= 5,000,000 AND every feature above is non-NULL | R1, R5 |
+| is_screen_eligible | BOOL | no | days_listed >= 126 AND unadjusted close > 2 AND adv_20d_usd >= 5,000,000 AND drawdown_252 is non-NULL. The price, liquidity and history screen, without the feature check | R1, R5 |
+| universe_breadth | FLOAT64 | yes | Share of screen-eligible `universe` rows that week with drawdown_252 <= -0.25. Our 11 are not in it. NULL only in a week with no screen-eligible universe row | R2, R5 |
+| is_model_eligible | BOOL | no | is_screen_eligible AND every feature above, universe_breadth included, is non-NULL | R1, R5 |
 | computed_at | TIMESTAMP | no | | |
 
-The twelve model inputs are: drawdown_252, ret_20d, ret_60d, ret_120d, vol_60d, volume_ratio_60d, beta_spx_120d, beta_arkk_120d, days_listed_capped, spx_distance, credit_distance, universe_breadth. Nothing else is a feature. The official dial level is **not** a feature [R5].
+The twelve model inputs are: drawdown_252, ret_20d, ret_60d, ret_120d, vol_60d, volume_ratio_60d, beta_spx_120d, beta_arkk_120d, days_listed_capped, spx_distance, credit_distance, universe_breadth. Nothing else is a feature. The official dial level is **not** a feature [R5]. The proposal listed thirteen inputs; removing the dial level leaves these twelve.
 
-Tests: unique (as_of, ticker); drawdown_252 in [-1, 0]; universe_breadth in [0, 1]; role in list; one singular test that no row reads a price after its as_of (demonstrated by seeding a future-dated row and watching it fail).
+**Build order inside the week.** Breadth reads `is_screen_eligible`, and `is_model_eligible` reads breadth, so the order is one way: per-ticker features and the screen first, then breadth over that week's screened universe rows, then the final eligibility flag. Nothing loops back.
+
+Tests: unique (as_of, ticker); drawdown_252 in [-1, 0]; universe_breadth in [0, 1]; is_model_eligible implies is_screen_eligible; role in list; one singular test that no row reads a price after its as_of (demonstrated by seeding a future-dated row and watching it fail).
 
 ### weekly_labels (mart, one row per as_of × ticker, owner Lane 2)
 
@@ -105,6 +108,7 @@ Every model's probability for every model-eligible row, labeled or not. This is 
 | as_of, ticker, role | | no | |
 | model_name | STRING | no | `baseline_drawdown`, `baseline_vol`, `logistic`, `boosted_trees` |
 | model_version | STRING | no | Version registered in MLflow for the run that produced the row |
+| trained_at | TIMESTAMP | no | When that model_version finished training; one value per model_version |
 | prob_drop_20pct_60d | FLOAT64 | no | Predicted probability, 0 to 1 |
 | split | STRING | no | Copied from weekly_labels |
 | scored_at | TIMESTAMP | no | |
@@ -120,6 +124,7 @@ The served model only, so the API's "latest as_of" query returns one row per tic
 | prob_drop_20pct_60d | FLOAT64 | no | From the served model |
 | rank_in_universe | INT64 | no | 1 = highest probability among `universe` rows that week. For an `our_basket` row: 1 + the number of universe rows with a higher probability, which is where the name would sit in the universe |
 | model_version | STRING | no | |
+| trained_at | TIMESTAMP | no | When the served model_version finished training; one value per model_version, so the dashboard can show how old the model is |
 | model_name | STRING | no | Which of the four models is served [R6] |
 | role | STRING | no | `universe` or `our_basket`; the API and dashboard read the basket from here instead of a hard-coded list |
 | universe_size | INT64 | no | Count of `universe` rows scored that week |
@@ -127,7 +132,7 @@ The served model only, so the API's "latest as_of" query returns one row per tic
 | prob_change_1w | FLOAT64 | yes | Change from the previous as_of; NULL on a ticker's first scored week |
 | scored_at | TIMESTAMP | no | |
 
-Tests: unique (as_of, ticker); probability in [0, 1]; exactly one model_name per as_of.
+Tests: unique (as_of, ticker); probability in [0, 1]; exactly one model_name per as_of; one trained_at per model_version (also in model_predictions and model_evaluation).
 
 A basket name with fewer than 126 trading days of history has no row. Today that is SPCX (listed 2026-06-12), which becomes scorable in mid-December 2026. The API already reports such names under `missing_from_scores`.
 
@@ -138,6 +143,7 @@ What the dashboard's model card reads.
 | Column | Type | Null | Meaning |
 |---|---|---|---|
 | model_name, model_version | STRING | no | |
+| trained_at | TIMESTAMP | no | Same value as in model_predictions for that model_version |
 | split | STRING | no | `validation` or `test` |
 | population | STRING | no | `universe` or `our_basket` |
 | metric | STRING | no | `auc`, `precision_top_decile`, `brier`, `base_rate`, `mean_predicted` |
@@ -194,3 +200,4 @@ The Phase 1 dial logic with the speculative leg computed on the universe instead
 7. **Lane 1:** confirm the backfill includes `^GSPC`, ARKK, HYG and IEF back to January 2020; the betas, spx_distance and credit_distance need them.
 8. **Lane 5:** the API can drop its hard-coded basket list and its own `universe_size` and median once it reads `role`, `universe_size` and `pct_rank_in_universe`.
 9. **Lane 4:** confirm these columns cover the risk panel, the robustness panel and the model card.
+10. **What the API serves (amended Nov 22 after Lane 4's review).** The API in PR #98 serves the latest week of `model_scores` (`/risk`, `/basket`): universe scores, ranks, `prob_change_1w`, `model_version` and `trained_at`, once its SELECT reads those columns. It does not serve history, `model_evaluation` or `universe_dial_daily`. The dashboard reads those three from BigQuery directly, as it reads the Phase 1 marts. Lane 5 confirms or extends the API under #89.

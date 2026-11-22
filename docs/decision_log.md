@@ -299,3 +299,12 @@ These entries were written before any universe ticker was selected and before an
 - Proposal: train and score in BigQuery ML (`LOGISTIC_REG`, `BOOSTED_TREE_CLASSIFIER`) from dbt, with a short Python step in the weekly Airflow task that logs parameters, metrics, the snapshot date and the model version to MLflow. The baselines are single-feature logistic regressions so all four models go through the same path. The evaluation in R6 runs in Python on `model_predictions`.
 - Alternative considered: scikit-learn in a Python job, which logs to MLflow natively but needs its own container, data export and scheduling.
 - Reason: the data never leaves the warehouse, Lane 2 already owns dbt, and the course covers BigQuery ML. The tables are small (roughly 100 to 150 stocks × 300 weeks), so cost is negligible; Lane 5 confirms under #90.
+
+## Phase 2 rules: amendments after review (Nov 22)
+
+- Recorded: 2026-11-22
+- Owner: Javier, Lane 3
+- Calendar floor (C3 §1 item 3): the Phase 1 calendar is floored at 2023-10-02, not 2024-10-01. Lane 1 found on Nov 17 that prod `raw.prices_raw` starts on 2023-10-02 and that the year before 2024-10-01 fills the 252-day reference window, so the earlier floor would itself have changed `daily_drawdowns` and `daily_signals`. The floor is the dbt var `phase1_cal_floor` in `int_trading_calendar`, merged with the contract and before the backfill. Acceptance is unchanged: the four Phase 1 marts are row-for-row identical before and after the backfill (Lane 1 checks under #70).
+- Breadth and eligibility (R5): `universe_breadth` is computed over screen-eligible universe rows (history, price and liquidity screen plus a non-NULL drawdown_252) instead of model-eligible rows. The draft defined breadth on model eligibility and model eligibility on breadth being present, which is circular. Lane 4 flagged it on Nov 18.
+- `trained_at` added to `model_predictions`, `model_scores` and `model_evaluation`, one value per model_version, at Lane 4's request.
+- No rule changed: universe, label, split and features stay as recorded in R1 to R6.
