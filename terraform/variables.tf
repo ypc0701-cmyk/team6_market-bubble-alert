@@ -13,3 +13,14 @@ variable "location" {
   type        = string
   default     = "US"
 }
+
+variable "api_data_source" {
+  description = "Where the model API reads scores: dummy (api/dummy_scores.csv) until model_scores exists, then bigquery"
+  type        = string
+  default     = "dummy"
+
+  validation {
+    condition     = contains(["dummy", "bigquery"], var.api_data_source)
+    error_message = "api_data_source must be dummy or bigquery."
+  }
+}

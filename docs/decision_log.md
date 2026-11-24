@@ -308,3 +308,12 @@ These entries were written before any universe ticker was selected and before an
 - Breadth and eligibility (R5): `universe_breadth` is computed over screen-eligible universe rows (history, price and liquidity screen plus a non-NULL drawdown_252) instead of model-eligible rows. The draft defined breadth on model eligibility and model eligibility on breadth being present, which is circular. Lane 4 flagged it on Nov 18.
 - `trained_at` added to `model_predictions`, `model_scores` and `model_evaluation`, one value per model_version, at Lane 4's request.
 - No rule changed: universe, label, split and features stay as recorded in R1 to R6.
+
+## Public model API
+
+- Recorded: 2026-11-13
+- Owner: Chloe, Lane 5
+- Decision: The model API (`model-api` on Cloud Run) is public; anyone with the URL can call it without logging in. It serves the latest weekly scores from `marts.model_scores` and reads a CSV of dummy rows until that table exists. Defined in `terraform/api.tf`.
+- Alternative considered: a private service like MLflow, with each caller sending an identity token.
+- Reason: the Phase 2 brief has reviewers call the API during evaluation, and the scores are derived from public market data.
+- Safeguard: the service runs as `model-api`, which can run queries and read the `marts` dataset only, with no write access anywhere, the same limits as `dashboard-runtime`. At most 2 instances, and results are cached for 10 minutes so repeated calls do not re-query BigQuery. Every response says whether it came from dummy data or the warehouse.
