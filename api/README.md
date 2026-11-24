@@ -4,8 +4,8 @@ Serves the latest weekly drawdown-probability scores (issue #89).
 
 | Endpoint | Returns |
 | --- | --- |
-| `GET /risk?ticker=NVDA` | One stock: `prob_drop_20pct_60d`, `rank_in_universe`, `universe_size`, `in_our_basket`, `model_version`, today's `dial_level` and `dial_label` |
-| `GET /basket` | Our 11 speculative stocks, highest probability first, plus the universe median |
+| `GET /risk?ticker=NVDA` | One stock: every `model_scores` column in schema contract v0.3 (`prob_drop_20pct_60d`, `rank_in_universe`, `pct_rank_in_universe`, `prob_change_1w`, `role`, `model_name`, `model_version`, `trained_at`, ...), plus `in_our_basket` and today's `dial_level` and `dial_label` |
+| `GET /basket` | Our speculative stocks (`role = our_basket`), highest probability first, plus the model version, universe size and median, and `missing_from_scores` (basket names without a score, e.g. SPCX until it has 126 trading days) |
 | `GET /health` | Status and number of scored tickers |
 | `GET /docs` | Interactive documentation (FastAPI) |
 
@@ -13,10 +13,9 @@ Every response includes `data_source`: `dummy` or `bigquery`.
 
 ## Status: skeleton on dummy data
 
-Until `marts.model_scores` exists, the API serves `dummy_scores.csv` (20 made-up rows, `model_version = dummy-0`). **These numbers are not model output.** To switch to real scores (planned Nov 20):
+Until `marts.model_scores` exists, the API serves `dummy_scores.csv`, a copy of the contract's dummy rows (`docs/dummy_rows/phase2/model_scores.csv`, `model_version = dummy-0`), latest week only. **These numbers are not model output.**
 
-1. Align the column names in `SCORES_SQL` (`main.py`) with schema contract v0.3.
-2. Set `api_data_source = "bigquery"` in `terraform/variables.tf`, run `terraform plan`, open a PR, and apply after merge.
+In bigquery mode the API reads the latest `as_of` of `marts.model_scores` (columns as in contract v0.3), the active speculative roster from `marts.basket_members`, and the latest dial from `marts.daily_signals`. To switch once `model_scores` is populated: set `api_data_source = "bigquery"` in `terraform/variables.tf`, run `terraform plan`, open a PR, and apply after merge.
 
 ## Infrastructure
 
@@ -32,7 +31,7 @@ Defined in [terraform/api.tf](../terraform/api.tf): Cloud Run service `model-api
 
 ## First deploy (Lane 5, Cloud Shell, after the MLflow deploy)
 
-    gcloud builds submit api/ --tag us-east1-docker.pkg.dev/market-bubble-alert/mlops/model-api:0.1.0
+    gcloud builds submit api/ --tag us-east1-docker.pkg.dev/market-bubble-alert/mlops/model-api:0.2.0
     cd terraform
     terraform apply
 

@@ -4,7 +4,7 @@
 # See docs/decision_log.md "Public model API".
 
 locals {
-  api_image = "${var.region}-docker.pkg.dev/${var.project_id}/mlops/model-api:0.1.0"
+  api_image = "${var.region}-docker.pkg.dev/${var.project_id}/mlops/model-api:0.2.0"
 }
 
 resource "google_service_account" "model_api" {
