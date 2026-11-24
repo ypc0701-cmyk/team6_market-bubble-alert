@@ -20,6 +20,12 @@
 | 2026-10-12 | 5 | Claude | Diagnosed 403 on local API calls (missing Service Usage Consumer role) | |
 | 2026-10-16 | 5 | Claude | Service account key handoff for Astronomer; README GCP docs | |
 | 2026-10-20 | 5 | Claude | Lane progress review, integration session checklist, Terraform import config | |
+| 2026-10-21 to 2026-10-26 | 5 | Claude | How to set Cloud Run permissions for the dashboard and make it public | |
+| 2026-10-21 to 2026-10-26 | 5 | Claude | Phase 1 presentation plan, slide explanations and speaking script | |
+| 2026-10-21 to 2026-10-26 | 5 | Claude | ERD and Look Ahead slide drafts | |
+| 2026-10-21 to 2026-10-26 | 5 | Claude | README and decision log updates (IAM, least privilege, Terraform) | |
+| 2026-10-27 | 5 | Claude | Writeup edits: governance paragraph in plain English | |
+| 2026-10-27 | 5 | Claude | When to run Terraform; PR reminder check and CODEOWNERS for Terraform | |
 | 2026-10-20 | 4 | ChatGPT / Codex (model version not recorded) | Git workflow guidance; reviewed and extended the Streamlit prototype with mart-backed charts, member views, freshness notices, Cloud Run files, and documentation; guided production checks | 15 mocked UI checks passed. Development and production data reads were verified in Cloud Shell by Yuanhao; the production page shows data through 2026-10-19. Cloud Run, team access, scheduled end-to-end verification, and final audit wording remain open. |
 | 2026-10-21 | 4 | ChatGPT / Codex (model version not recorded) | Added signal evidence, condition flags, basket comparison, credit/concentration trends and episode history using existing marts; clarified filters and the speculative count; extended UI checks and production verification SQL | 23 mocked UI checks pass. The original Cloud Run release and team interaction were verified by Yuanhao and teammates; the new panels still need live production verification after merge and redeployment. |
 
