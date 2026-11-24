@@ -19,6 +19,8 @@ models:
       +materialized: view
     marts:
       +schema: marts
+    phase2:
+      +schema: marts
 
 seeds:
   ai_bubble_monitor:

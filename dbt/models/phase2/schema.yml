@@ -1,0 +1,180 @@
+version: 2
+
+models:
+  - name: weekly_features
+    description: Phase 2 weekly stock features for training and scoring.
+    columns:
+      - name: as_of
+        data_tests:
+          - not_null
+
+      - name: ticker
+        data_tests:
+          - not_null
+
+      - name: role
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['universe', 'our_basket']
+
+      - name: adj_close
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+
+      - name: days_listed
+        data_tests:
+          - not_null
+
+      - name: drawdown_252
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+
+      - name: universe_breadth
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+      - name: is_screen_eligible
+        data_tests:
+          - not_null
+
+      - name: is_model_eligible
+        data_tests:
+          - not_null
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [as_of, ticker]
+
+  - name: weekly_labels
+    description: Phase 2 forward-looking 60-trading-day outcome labels.
+    columns:
+      - name: as_of
+        data_tests:
+          - not_null
+
+      - name: ticker
+        data_tests:
+          - not_null
+
+      - name: role
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['universe', 'our_basket']
+
+      - name: fwd_days_available
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 60
+
+      - name: label_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['final', 'pending', 'truncated']
+
+      - name: label_drop_20pct_60d
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+      - name: split
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['train', 'validation', 'test', 'gap', 'unlabeled']
+
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [as_of, ticker]
+
+  - name: model_predictions
+    description: Development-only BigQuery ML predictions.
+    columns:
+      - name: as_of
+        data_tests:
+          - not_null
+      - name: ticker
+        data_tests:
+          - not_null
+      - name: model_name
+        data_tests:
+          - not_null
+      - name: model_version
+        data_tests:
+          - not_null
+      - name: trained_at
+        data_tests:
+          - not_null
+      - name: prob_drop_20pct_60d
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [as_of, ticker, model_name]
+
+  - name: model_scores
+    description: Development-only model scores and universe rankings.
+    columns:
+      - name: as_of
+        data_tests:
+          - not_null
+      - name: ticker
+        data_tests:
+          - not_null
+      - name: model_version
+        data_tests:
+          - not_null
+      - name: trained_at
+        data_tests:
+          - not_null
+      - name: role
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['universe', 'our_basket']
+      - name: prob_drop_20pct_60d
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: pct_rank_in_universe
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [as_of, ticker]
