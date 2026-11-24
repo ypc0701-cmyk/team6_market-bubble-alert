@@ -308,3 +308,14 @@ These entries were written before any universe ticker was selected and before an
 - Breadth and eligibility (R5): `universe_breadth` is computed over screen-eligible universe rows (history, price and liquidity screen plus a non-NULL drawdown_252) instead of model-eligible rows. The draft defined breadth on model eligibility and model eligibility on breadth being present, which is circular. Lane 4 flagged it on Nov 18.
 - `trained_at` added to `model_predictions`, `model_scores` and `model_evaluation`, one value per model_version, at Lane 4's request.
 - No rule changed: universe, label, split and features stay as recorded in R1 to R6.
+
+## R1 applied: universe snapshot of 2026-11-23
+
+- Recorded: 2026-11-24
+- Owner: Javier, Lane 3
+- Result: six ETFs qualify (BAI, AIQ, ARTY, BOTZ, CHAT, IGPT) and 141 tickers enter `universe_members` (file in `docs/universe_snapshot_2026-11-23/`, seeded by Lane 2 in #74). AGIX, IVES and ALAI are under $1B on issuer figures. Evidence and the screen are in `docs/universe_snapshot_2026-11-23/`; the seed is rebuilt by `scripts/build_universe_snapshot.py`.
+- Clarification: "net assets on the snapshot date" means as of the Nov 23 close for every fund. Invesco had published only its Nov 20 figure ($985.4M) on Nov 23; at the Nov 23 close IGPT was about $1.10B. Decided before any model result exists; the official Invesco figure is checked when posted.
+- Clarifications of the holdings rule: a company held only through a non-US line does not enter; NYSE American is not NYSE; foreign tickers that collide with a different US company on Yahoo are dropped.
+- Change: the issuer holdings files are not committed, because Global X and BlackRock prohibit redistribution. Source URLs, as-of dates and per-ticker fund membership are committed instead. The order "rule first, list second" stays checkable from git history.
+- No rule changed.
+
