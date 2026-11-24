@@ -65,6 +65,12 @@ resource "google_cloud_run_v2_service" "model_api" {
     google_project_iam_member.model_api_job_user,
     google_bigquery_dataset_iam_member.model_api_marts_reader,
   ]
+
+  # Cloud Run reports a service-level scaling block (all zeros) that we never set;
+  # without this, every plan shows a no-op "1 to change". template.scaling is unaffected.
+  lifecycle {
+    ignore_changes = [scaling]
+  }
 }
 
 # Public: reviewers call the API during evaluation without logging in.
