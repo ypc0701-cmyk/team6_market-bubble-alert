@@ -7,6 +7,8 @@ Manages the core GCP resources for `market-bubble-alert`:
 - Phase 2 MLflow server (`mlflow.tf`): Artifact Registry repo `mlops`, bucket
   `market-bubble-alert-mlflow`, service account `mlflow-server`, Cloud Run service
   `mlflow` and the APIs it needs. First deploy steps are in [mlflow/README.md](../mlflow/README.md).
+- Phase 2 model API (`api.tf`): service account `model-api` (BigQuery Job User, read on
+  `marts`), public Cloud Run service `model-api`. Deploy steps in [api/README.md](../api/README.md).
 
 These were created by hand on Oct 11 so Lane 1 was not blocked, then imported with
 the `import` blocks in `imports.tf` on Oct 20 (no changes to the live resources).

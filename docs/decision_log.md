@@ -309,6 +309,15 @@ These entries were written before any universe ticker was selected and before an
 - `trained_at` added to `model_predictions`, `model_scores` and `model_evaluation`, one value per model_version, at Lane 4's request.
 - No rule changed: universe, label, split and features stay as recorded in R1 to R6.
 
+## Public model API
+
+- Recorded: 2026-11-13
+- Owner: Chloe, Lane 5
+- Decision: The model API (`model-api` on Cloud Run) is public; anyone with the URL can call it without logging in. It serves the latest weekly scores from `marts.model_scores` and reads a CSV of dummy rows until that table exists. Defined in `terraform/api.tf`.
+- Alternative considered: a private service like MLflow, with each caller sending an identity token.
+- Reason: the Phase 2 brief has reviewers call the API during evaluation, and the scores are derived from public market data.
+- Safeguard: the service runs as `model-api`, which can run queries and read the `marts` dataset only, with no write access anywhere, the same limits as `dashboard-runtime`. At most 2 instances, and results are cached for 10 minutes so repeated calls do not re-query BigQuery. Every response says whether it came from dummy data or the warehouse.
+
 ## R1 applied: universe snapshot of 2026-11-23
 
 - Recorded: 2026-11-24
@@ -318,4 +327,3 @@ These entries were written before any universe ticker was selected and before an
 - Clarifications of the holdings rule: a company held only through a non-US line does not enter; NYSE American is not NYSE; foreign tickers that collide with a different US company on Yahoo are dropped.
 - Change: the issuer holdings files are not committed, because Global X and BlackRock prohibit redistribution. Source URLs, as-of dates and per-ticker fund membership are committed instead. The order "rule first, list second" stays checkable from git history.
 - No rule changed.
-
