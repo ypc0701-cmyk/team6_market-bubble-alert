@@ -31,7 +31,7 @@ sources:
             tests:
               - not_null
               - relationships:
-                  to: ref('basket_members')
+                  to: ref('tracked_tickers')
                   field: ticker
           - name: open
             description: Unadjusted open.
