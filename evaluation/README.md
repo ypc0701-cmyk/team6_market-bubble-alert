@@ -4,12 +4,7 @@ Run in this order. Rules: decision log R3, R6 and R7; tables: schema contract v0
 
 ## 1. Base-rate check, before any model is trained (R3, #81)
 
-Paste `base_rate_check.sql` into the BigQuery console (or `bq query --use_legacy_sql=false < evaluation/base_rate_check.sql`) once `weekly_features` and `weekly_labels` exist. It reports the share of positive labels on training rows, overall and by year, and the R3 verdict:
-
-- 10% to 40%: the 20% / 60-day label stands.
-- Above 40%: the threshold moves to 25%. Below 10%: to 15%. Rerun once on the new threshold.
-
-Log the result in `docs/decision_log.md` either way, **before** training. No other label change is allowed after results are seen.
+Enforced in Lane 2's build: the dbt test `phase2_label_base_rate_in_band` (in #103) fails `dbt build` when the share of positive labels on training rows is outside 10% to 40%, so training does not start on a label R3 would change. If it fails: above 40% the threshold moves to 25%, below 10% to 15%; rebuild, rerun once and log the result in `docs/decision_log.md` either way. No other label change is allowed after results are seen.
 
 ## 2. Evaluation, after `model_predictions` exists (R6, R7, #82, #83, #84)
 
