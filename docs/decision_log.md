@@ -323,7 +323,17 @@ These entries were written before any universe ticker was selected and before an
 - Recorded: 2026-11-24
 - Owner: Javier, Lane 3
 - Result: six ETFs qualify (BAI, AIQ, ARTY, BOTZ, CHAT, IGPT) and 141 tickers enter `universe_members` (file in `docs/universe_snapshot_2026-11-23/`, seeded by Lane 2 in #74). AGIX, IVES and ALAI are under $1B on issuer figures. Evidence and the screen are in `docs/universe_snapshot_2026-11-23/`; the seed is rebuilt by `scripts/build_universe_snapshot.py`.
-- Clarification: "net assets on the snapshot date" means as of the Nov 23 close for every fund. Invesco had published only its Nov 20 figure ($985.4M) on Nov 23; at the Nov 23 close IGPT was about $1.10B. Decided before any model result exists; the official Invesco figure is checked when posted.
+- Clarification: "net assets on the snapshot date" means as of the Nov 23 close for every fund. Invesco had published only its Nov 20 figure ($985.4M) on Nov 23; at the Nov 23 close IGPT was about $1.10B. Decided before any model result exists. Confirmed Nov 25 from Invesco's NAV history: $1.104B on Nov 23 ($74.259056 x 14.87M shares).
 - Clarifications of the holdings rule: a company held only through a non-US line does not enter; NYSE American is not NYSE; foreign tickers that collide with a different US company on Yahoo are dropped.
 - Change: the issuer holdings files are not committed, because Global X and BlackRock prohibit redistribution. Source URLs, as-of dates and per-ticker fund membership are committed instead. The order "rule first, list second" stays checkable from git history.
 - No rule changed.
+
+## Phase 1 marts after the 2020 backfill: dividend re-adjustment accepted
+
+- Recorded: 2026-11-25
+- Owner: Javier, Lane 3; evidence by Kean, Lane 1 (#70)
+- Context: C3 §1 item 3 asked that the four Phase 1 marts be row-for-row identical before and after the January 2020 backfill. The purpose was to prove the calendar floor and the larger load do not change Phase 1 logic.
+- Finding: episodes identical; no `is_broken`, `is_signal_eligible`, `dial_level` or `is_armed` value changed on any day. Every difference traces to yfinance re-adjusting `adj_close` for dividends paid since the October load (largest drawdown change 0.51 points, all in dividend payers). One visible effect: `credit_status` went watch to normal on 2026-11-02, 11-05 and 11-06, where `credit_distance` moved from -3.10% to -2.97% across the -3% line after HYG and IEF paid early-November dividends. The dial stayed Level 3, armed, on all three days.
+- Decision: accepted. The test is read as "identical given the same adjusted prices"; a vendor re-adjustment is not a logic change, and it would happen on any re-pull. The re-adjusted series is the correct one, so the new values stand.
+- Consequence: any full re-pull can move old drawdowns in the third or fourth decimal for dividend payers, and a value sitting on a threshold can flip. The Lane 1 README (#106) says so.
+
