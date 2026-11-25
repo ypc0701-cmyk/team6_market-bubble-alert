@@ -292,13 +292,14 @@ These entries were written before any universe ticker was selected and before an
 - Measured and reported next to the results: (1) regime dependence, by reporting the base rate and AUC by calendar year and the share of training positives that fall in 2022; (2) hindsight in the universe, by repeating the test-period evaluation on names that already had five years of history in January 2021, a group that today's ETF fashion selected less; (3) our 11 against the universe, as the distribution of their percentile ranks.
 - Stated, with direction of bias, because we cannot measure it: survivorship. Stocks that were delisted or dropped from ETFs before the snapshot are absent, so past falls are understated and the base rate is biased down. Past ETF holdings would be needed to measure this and are not available to us.
 
-## R8 · Training engine: BigQuery ML (proposed)
+## R8 · Training engine: BigQuery ML (decided)
 
 - Recorded: 2026-11-16
 - Owner: Javier, Lane 3, with Ahrar (Lane 2) and Chloe (Lane 5); open under #94 until both agree
 - Proposal: train and score in BigQuery ML (`LOGISTIC_REG`, `BOOSTED_TREE_CLASSIFIER`) from dbt, with a short Python step in the weekly Airflow task that logs parameters, metrics, the snapshot date and the model version to MLflow. The baselines are single-feature logistic regressions so all four models go through the same path. The evaluation in R6 runs in Python on `model_predictions`.
 - Alternative considered: scikit-learn in a Python job, which logs to MLflow natively but needs its own container, data export and scheduling.
 - Reason: the data never leaves the warehouse, Lane 2 already owns dbt, and the course covers BigQuery ML. The tables are small (roughly 100 to 150 stocks × 300 weeks), so cost is negligible; Lane 5 confirms under #90.
+- Decided: 2026-11-25, closed under #94. Lane 2 builds the Phase 2 models in BigQuery ML (#103).
 
 ## Phase 2 rules: amendments after review (Nov 22)
 
