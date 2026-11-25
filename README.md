@@ -27,24 +27,68 @@ See [dashboard setup](dashboard/README.md) and [Lane 4 handoff](docs/lane4_hando
 
 ## Lane 1: running the extractor
 
-Daily or any date range (safe to re-run; replaces those dates, never duplicates):
+**Which tickers.** Every run loads the union of `marts.basket_members` (the 24 Phase 1 symbols) and `marts.universe_members` (the Phase 2 universe), duplicates dropped: 24 + 141 - 7 overlaps = **158** as of Nov 25, 2026. Nobody edits a list in the code.
+
+**Re-runs are safe.** A run deletes only the (date, ticker) pairs it is loading, then appends. Re-running a range never duplicates rows, and loading one ticker never touches any other ticker's rows.
+
+Daily or any date range:
 
 ```
-python extractor/extract.py --start 2026-10-01 --end 2026-10-09
+python extractor/extract.py --start 2026-11-16 --end 2026-11-20
 ```
 
-**Backfill** (two years, ~3 min, ~11.7k rows):
+Add `--dry-run` to fetch and print counts without writing anything.
+
+**Full backfill** (what ran on Nov 25, 2026: ~15 min, 246,237 rows, 158 tickers, 1,734 trading days):
 
 ```
-python extractor/extract.py --start 2024-10-01 --end <today>
+python extractor/extract.py --start 2020-01-01 --end <today> --run-id backfill-2020
 ```
+
+Note: the dial uses `adj_close`, and Yahoo re-adjusts past prices whenever a dividend is paid. A full re-pull can therefore move old drawdowns in the 3rd or 4th decimal for dividend payers (HYG and IEF the most). On Nov 25 that flipped `credit_status` on 3 days that sat on the -3% line; no dial level changed (see #70).
+
+### Backfill one new universe ticker
+
+When Lane 3 adds a name (say `ABCD`) to `universe_members`:
+
+1. Lane 2 merges the seed change, and Lane 1 redeploys Astronomer so `dbt seed` puts the new row in `marts.universe_members`.
+2. Load its history (only `ABCD` is deleted and reloaded; every other ticker is untouched):
+   ```
+   python extractor/extract.py --tickers ABCD --start 2020-01-01 --end <today> --run-id backfill-ABCD
+   ```
+3. Check it landed:
+   ```
+   bq query --use_legacy_sql=false 'SELECT COUNT(*) n, MIN(trade_date) first, MAX(trade_date) last FROM raw.prices_raw WHERE ticker="ABCD"'
+   ```
+   `first` should be Jan 2, 2020, or the listing date if later.
+
+Load prices only for tickers that are already in `basket_members` or `universe_members`: the `prices_raw.ticker` test fails `dbt build` on anything else.
+
+### Refreshing the universe (manual, never automatic)
+
+The universe changes only when Lane 3 decides it should, never on a schedule:
+
+1. Lane 3 re-pulls ETF holdings and rebuilds the list: `python scripts/build_universe_snapshot.py`, writing a new dated folder under `docs/universe_snapshot_<date>/`, and opens a PR.
+2. Lane 2 updates `dbt/seeds/universe_members.csv` from it. **Names that leave get a `removed_date` and `removed_reason`; rows are never deleted**, so their loaded prices still pass the `prices_raw.ticker` test.
+3. Lane 1 redeploys Astronomer, then backfills only the new names with `--tickers NEW1,NEW2` as above.
 
 **Docker** (same image the DAG runs; credentials are passed in at run time, never baked in):
 
 ```
 docker build -t lane1-extractor extractor/
-docker run --rm lane1-extractor --start 2024-10-01 --end <today>
+docker run --rm lane1-extractor --start 2026-11-16 --end 2026-11-20
 ```
+
+**Deploying to Astronomer** (Cloud Shell): wake it first, and only ever deploy from `main`.
+
+```
+astro deployment wake-up cmv1bvgol448o01plig8o0pqs --for 3h -f
+echo '{"max-concurrent-uploads": 1}' | sudo tee /etc/docker/daemon.json && sudo service docker restart
+astro deploy cmv1bvgol448o01plig8o0pqs -f
+```
+
+The upload-limit line is needed after every Cloud Shell reset; without it the image push stalls. If the push still hangs or returns 503/403: `docker logout cliemx7ny00uu01mbf12mk2gu.registry.astronomer.run` and deploy again.
+
 ## GCP
 - Project ID: `market-bubble-alert`
 - Console: https://console.cloud.google.com/home/dashboard?project=market-bubble-alert
