@@ -21,6 +21,17 @@ In bigquery mode the API reads the latest `as_of` of `marts.model_scores` (colum
 
 Defined in [terraform/api.tf](../terraform/api.tf): Cloud Run service `model-api` (us-east1, public, at most 2 instances) running as service account `model-api`, which can run queries and read the `marts` dataset only. Why public: see "Public model API" in [docs/decision_log.md](../docs/decision_log.md).
 
+## Alerts (issue #91)
+
+`terraform/monitoring.tf` defines two alert policies from `docs/phase2_monitoring.md` section 4, each measured over about 24 hours:
+
+- more than 1% of requests return 5xx
+- p95 latency above 2 seconds (cold starts alone can trigger this when traffic is low, since the service scales to zero)
+
+Alerts are emailed through a notification channel named **Lane 5 alerts**, created once by hand so no email address is stored in this public repo (Cloud Shell, before the first `terraform plan`):
+
+    gcloud beta monitoring channels create --display-name="Lane 5 alerts" --type=email --channel-labels=email_address=YOUR_EMAIL@bu.edu
+
 ## Run locally
 
     cd api
