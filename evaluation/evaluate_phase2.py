@@ -31,6 +31,8 @@ better baseline on validation AUC, so the test period is used for nothing but th
 "beats_best_baseline" is TRUE when the 90% interval of (model AUC - best baseline AUC), computed
 on the same resampled weeks, lies above zero.
 """
+
+import json
 import argparse
 import datetime as dt
 from pathlib import Path
@@ -406,6 +408,34 @@ def main():
     ranks.to_csv(out / "our11_ranks.csv", index=False, float_format="%.6f")
     (out / "report.md").write_text(report(ev, best_base, decisions, by_year, share_2022, hind,
                                           our11_summary, served), encoding="utf-8")
+    # Machine-readable R6 serving decision for Lane 2 automation.
+    model_versions = {}
+
+    for model_name, group in ev.groupby("model_name"):
+        versions = group["model_version"].dropna().unique().tolist()
+
+        if len(versions) != 1:
+            raise ValueError(
+                f"Expected one version for {model_name}; found {versions}"
+            )
+
+        model_versions[str(model_name)] = str(versions[0])
+
+    decision = {
+        "served_model": str(served),
+        "candidate_model": str(cand) if cand else None,
+        "best_baseline": str(best_base) if best_base else None,
+        "evaluated_at": str(ev["evaluated_at"].iloc[0]),
+        "bigquery_project": args.bq_project,
+        "bigquery_dataset": args.bq_dataset,
+        "model_versions": model_versions,
+    }
+
+    (out / "serving_decision.json").write_text(
+        json.dumps(decision, indent=2),
+        encoding="utf-8",
+    )
+
     print(f"{len(ev)} model_evaluation rows; candidate={cand}; best baseline={best_base}; served={served}")
     print(f"outputs in {out}")
 

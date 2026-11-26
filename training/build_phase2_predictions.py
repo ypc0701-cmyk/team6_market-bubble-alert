@@ -1,9 +1,14 @@
 """Build Phase 2 predictions using current BigQuery model metadata."""
 
-import os
 import subprocess
-import sys
-from pathlib import Path
+
+from validate_phase2_training import (
+    ROOT,
+    DBT_BIN,
+    DBT_PROJECT_DIR,
+    DBT_PROFILES_DIR,
+    DBT_TARGET,
+)
 
 from google.cloud import bigquery
 
@@ -17,7 +22,7 @@ MODELS = (
     "boosted_trees",
 )
 
-ROOT = Path(__file__).resolve().parents[1]
+
 
 
 def get_model_timestamps():
@@ -43,28 +48,21 @@ def main():
 
     dbt_vars = "\n".join(yaml_lines)
 
-    dbt_executable = (
-        ROOT / ".venv" / "Scripts" / "dbt.exe"
-        if os.name == "nt"
-        else ROOT / ".venv" / "bin" / "dbt"
-    )
-
-    if not dbt_executable.exists():
-        raise FileNotFoundError(
-            f"dbt executable not found: {dbt_executable}"
+    if DBT_TARGET != "dev":
+        raise RuntimeError(
+            "Production predictions are not enabled yet."
         )
-
     command = [
-        str(dbt_executable),
+        str(DBT_BIN),
         "build",
         "--select",
         "model_predictions",
         "--project-dir",
-        str(ROOT / "dbt"),
+        str(DBT_PROJECT_DIR),
         "--profiles-dir",
-        str(Path.home() / ".dbt"),
+        str(DBT_PROFILES_DIR),
         "--target",
-        "dev",
+        DBT_TARGET,
         "--vars",
         dbt_vars,
     ]

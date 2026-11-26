@@ -3,9 +3,12 @@
 import argparse
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
-from train_phase2 import main as train_main
+from airflow_credentials import airflow_credentials
+
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
@@ -24,8 +27,28 @@ def main():
         action="store_true",
         help="Replace all four development BigQuery ML models",
     )
+    parser.add_argument(
+        "--airflow",
+        action="store_true",
+        help="Use the existing Airflow Google Cloud connection",
+    )
     args = parser.parse_args()
 
+    # Select credentials before checking the active dbt target.
+    context = airflow_credentials() if args.airflow else nullcontext()
+
+    with context:
+        from validate_phase2_training import DBT_TARGET
+
+        if DBT_TARGET != "dev":
+            raise RuntimeError(
+                "Production weekly workflow is not enabled yet."
+            )
+
+        execute_workflow(args)
+
+
+def execute_workflow(args):
     # Always refresh training data and enforce R3.
     run_script("training/train_phase2.py", *(
         ["--execute"] if args.retrain else []

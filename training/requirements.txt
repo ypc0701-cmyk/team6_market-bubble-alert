@@ -1,0 +1,4 @@
+# Lane 2 model tracking dependencies.
+# MLflow server compatibility: 2.22.0.
+mlflow==2.22.0
+SQLAlchemy>=2.0,<2.1

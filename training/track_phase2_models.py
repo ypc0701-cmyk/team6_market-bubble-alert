@@ -9,6 +9,9 @@ import mlflow
 from google.cloud import bigquery
 from mlflow.tracking import MlflowClient
 
+from mlflow_auth import configure_mlflow_auth
+from validate_phase2_training import DBT_TARGET
+
 PROJECT = "market-bubble-alert"
 DATASET = "marts_dev"
 EXPERIMENT = "phase2-bigquery-ml-dev"
@@ -90,11 +93,13 @@ def build_tracking_records():
 
 
 def register_models():
-    if not os.environ.get("MLFLOW_TRACKING_URI"):
-        raise RuntimeError("MLFLOW_TRACKING_URI is not configured")
+    if DBT_TARGET != "dev":
+        raise RuntimeError(
+            "Production MLflow tracking is not enabled yet."
+        )
 
-    if not os.environ.get("MLFLOW_TRACKING_TOKEN"):
-        raise RuntimeError("MLFLOW_TRACKING_TOKEN is not configured")
+    # Configure MLflow authentication before contacting Cloud Run.
+    configure_mlflow_auth()
 
     records = build_tracking_records()
 

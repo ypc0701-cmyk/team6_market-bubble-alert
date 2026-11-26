@@ -3,7 +3,7 @@
 import argparse
 import subprocess
 
-from validate_phase2_training import validate_training_data, run_dbt
+from validate_phase2_training import validate_training_data, run_dbt, DBT_TARGET
 
 TRAINING_MACROS = [
     "train_phase2_logistic_dev",
@@ -19,6 +19,11 @@ def main():
         help="Actually retrain the four BigQuery ML models",
     )
     args = parser.parse_args()
+
+    if DBT_TARGET != "dev":
+        raise RuntimeError(
+            "Production training is not enabled yet."
+        )
 
     # Refresh and test upstream data before validating training.
     print("Refreshing Phase 2 features and labels...", flush=True)
