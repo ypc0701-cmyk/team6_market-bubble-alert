@@ -424,3 +424,37 @@ models:
               values: ['quiet_expiry', 'ceiling']
       - name: computed_at
         tests: [not_null]
+
+  - name: universe_dial_daily
+    description: >
+      Phase 2 (contract v0.3, Lane 3, #83): the Phase 1 dial with the speculative leg computed on
+      universe_members instead of our 11; megacap, S&P, concentration and credit legs unchanged.
+      Built from int_universe_drawdowns, int_universe_conditions and int_universe_episodes, which
+      reuse the Phase 1 logic. Checked on DuckDB with synthetic prices: with the universe set to our
+      11, it equals daily_signals on every day (dial, armed state, breadth, median, episodes).
+    columns:
+      - name: trade_date
+        tests: [unique, not_null]
+      - name: univ_members_valid
+        tests: [not_null]
+      - name: univ_members_broken
+        tests: [not_null]
+      - name: cond_divergence
+        tests: [not_null]
+      - name: is_armed
+        tests: [not_null]
+      - name: universe_dial_level
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3, 4, 5]
+              quote: false
+      - name: universe_dial_label
+        tests:
+          - accepted_values:
+              values: ['CALM', 'STRAIN', 'DIVERGENCE', 'TOPPING', 'REPRICING', 'WASHOUT']
+      - name: official_dial_level
+        tests: [not_null]
+      - name: dials_agree
+        tests: [not_null]
+

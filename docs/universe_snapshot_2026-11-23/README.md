@@ -14,12 +14,12 @@ Result: **6 qualifying ETFs, 141 tickers** in `universe_members.csv` (this folde
 
 ## Step 1: which ETFs qualify
 
-Qualify (net assets on Nov 23): BAI $11.34B, AIQ $8.87B, ARTY $3.20B, BOTZ $2.68B, CHAT $1.42B, IGPT about $1.10B.
+Qualify (net assets on Nov 23): BAI $11.34B, AIQ $8.87B, ARTY $3.20B, BOTZ $2.68B, CHAT $1.42B, IGPT $1.10B.
 Out: AGIX $877M, ALAI $773M, IVES $752M. AIPO, AIS and ROBT are far below $1B on aggregator figures.
 
 Changes from the Nov 16 "expected" list: AGIX and IVES did not reach $1B. ALAI was checked because an aggregator listed it at $3.25B; Alger's own figure is $773M.
 
-**IGPT.** On the snapshot date Invesco's site showed $985.4M dated Nov 20. Every other issuer reports as of the Nov 23 close, so IGPT is read the same way: 14.87M shares at the Nov 23 close (about $74) is about $1.10B. Decided by Javier on Nov 24. Invesco's official Nov 23 figure is to be checked when posted; if it is under $1B, rerun without `IGPT` (30 names drop, listed in the PR).
+**IGPT.** On the snapshot date Invesco's site showed $985.4M dated Nov 20. Every other issuer reports as of the Nov 23 close, so IGPT is read the same way: 14.87M shares at the Nov 23 close (about $74) is about $1.10B. Decided by Javier on Nov 24. Confirmed on Nov 25 from Invesco's NAV history: $74.259056 on Nov 23 x 14.87M shares = **$1.104B**. IGPT stays in.
 
 ## Step 2: holdings to candidates
 
