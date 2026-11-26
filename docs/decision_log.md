@@ -292,13 +292,14 @@ These entries were written before any universe ticker was selected and before an
 - Measured and reported next to the results: (1) regime dependence, by reporting the base rate and AUC by calendar year and the share of training positives that fall in 2022; (2) hindsight in the universe, by repeating the test-period evaluation on names that already had five years of history in January 2021, a group that today's ETF fashion selected less; (3) our 11 against the universe, as the distribution of their percentile ranks.
 - Stated, with direction of bias, because we cannot measure it: survivorship. Stocks that were delisted or dropped from ETFs before the snapshot are absent, so past falls are understated and the base rate is biased down. Past ETF holdings would be needed to measure this and are not available to us.
 
-## R8 · Training engine: BigQuery ML (proposed)
+## R8 · Training engine: BigQuery ML (decided)
 
 - Recorded: 2026-11-16
 - Owner: Javier, Lane 3, with Ahrar (Lane 2) and Chloe (Lane 5); open under #94 until both agree
 - Proposal: train and score in BigQuery ML (`LOGISTIC_REG`, `BOOSTED_TREE_CLASSIFIER`) from dbt, with a short Python step in the weekly Airflow task that logs parameters, metrics, the snapshot date and the model version to MLflow. The baselines are single-feature logistic regressions so all four models go through the same path. The evaluation in R6 runs in Python on `model_predictions`.
 - Alternative considered: scikit-learn in a Python job, which logs to MLflow natively but needs its own container, data export and scheduling.
 - Reason: the data never leaves the warehouse, Lane 2 already owns dbt, and the course covers BigQuery ML. The tables are small (roughly 100 to 150 stocks × 300 weeks), so cost is negligible; Lane 5 confirms under #90.
+- Decided: 2026-11-25, closed under #94. Lane 2 builds the Phase 2 models in BigQuery ML (#103).
 
 ## Phase 2 rules: amendments after review (Nov 22)
 
@@ -308,3 +309,32 @@ These entries were written before any universe ticker was selected and before an
 - Breadth and eligibility (R5): `universe_breadth` is computed over screen-eligible universe rows (history, price and liquidity screen plus a non-NULL drawdown_252) instead of model-eligible rows. The draft defined breadth on model eligibility and model eligibility on breadth being present, which is circular. Lane 4 flagged it on Nov 18.
 - `trained_at` added to `model_predictions`, `model_scores` and `model_evaluation`, one value per model_version, at Lane 4's request.
 - No rule changed: universe, label, split and features stay as recorded in R1 to R6.
+
+## Public model API
+
+- Recorded: 2026-11-13
+- Owner: Chloe, Lane 5
+- Decision: The model API (`model-api` on Cloud Run) is public; anyone with the URL can call it without logging in. It serves the latest weekly scores from `marts.model_scores` and reads a CSV of dummy rows until that table exists. Defined in `terraform/api.tf`.
+- Alternative considered: a private service like MLflow, with each caller sending an identity token.
+- Reason: the Phase 2 brief has reviewers call the API during evaluation, and the scores are derived from public market data.
+- Safeguard: the service runs as `model-api`, which can run queries and read the `marts` dataset only, with no write access anywhere, the same limits as `dashboard-runtime`. At most 2 instances, and results are cached for 10 minutes so repeated calls do not re-query BigQuery. Every response says whether it came from dummy data or the warehouse.
+
+## R1 applied: universe snapshot of 2026-11-23
+
+- Recorded: 2026-11-24
+- Owner: Javier, Lane 3
+- Result: six ETFs qualify (BAI, AIQ, ARTY, BOTZ, CHAT, IGPT) and 141 tickers enter `universe_members` (file in `docs/universe_snapshot_2026-11-23/`, seeded by Lane 2 in #74). AGIX, IVES and ALAI are under $1B on issuer figures. Evidence and the screen are in `docs/universe_snapshot_2026-11-23/`; the seed is rebuilt by `scripts/build_universe_snapshot.py`.
+- Clarification: "net assets on the snapshot date" means as of the Nov 23 close for every fund. Invesco had published only its Nov 20 figure ($985.4M) on Nov 23; at the Nov 23 close IGPT was about $1.10B. Decided before any model result exists. Confirmed Nov 25 from Invesco's NAV history: $1.104B on Nov 23 ($74.259056 x 14.87M shares).
+- Clarifications of the holdings rule: a company held only through a non-US line does not enter; NYSE American is not NYSE; foreign tickers that collide with a different US company on Yahoo are dropped.
+- Change: the issuer holdings files are not committed, because Global X and BlackRock prohibit redistribution. Source URLs, as-of dates and per-ticker fund membership are committed instead. The order "rule first, list second" stays checkable from git history.
+- No rule changed.
+
+## Phase 1 marts after the 2020 backfill: dividend re-adjustment accepted
+
+- Recorded: 2026-11-25
+- Owner: Javier, Lane 3; evidence by Kean, Lane 1 (#70)
+- Context: C3 §1 item 3 asked that the four Phase 1 marts be row-for-row identical before and after the January 2020 backfill. The purpose was to prove the calendar floor and the larger load do not change Phase 1 logic.
+- Finding: episodes identical; no `is_broken`, `is_signal_eligible`, `dial_level` or `is_armed` value changed on any day. Every difference traces to yfinance re-adjusting `adj_close` for dividends paid since the October load (largest drawdown change 0.51 points, all in dividend payers). One visible effect: `credit_status` went watch to normal on 2026-11-02, 11-05 and 11-06, where `credit_distance` moved from -3.10% to -2.97% across the -3% line after HYG and IEF paid early-November dividends. The dial stayed Level 3, armed, on all three days.
+- Decision: accepted. The test is read as "identical given the same adjusted prices"; a vendor re-adjustment is not a logic change, and it would happen on any re-pull. The re-adjusted series is the correct one, so the new values stand.
+- Consequence: any full re-pull can move old drawdowns in the third or fourth decimal for dividend payers, and a value sitting on a threshold can flip. The Lane 1 README (#106) says so.
+

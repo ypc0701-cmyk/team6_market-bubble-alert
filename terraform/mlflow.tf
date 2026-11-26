@@ -116,6 +116,12 @@ resource "google_cloud_run_v2_service" "mlflow" {
     google_project_service.mlops,
     google_storage_bucket_iam_member.mlflow_server,
   ]
+
+  # Cloud Run reports a service-level scaling block (all zeros) that we never set;
+  # without this, every plan shows a no-op "1 to change". template.scaling is unaffected.
+  lifecycle {
+    ignore_changes = [scaling]
+  }
 }
 
 # Not public: only granted identities can open MLflow.

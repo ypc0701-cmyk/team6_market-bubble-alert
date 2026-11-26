@@ -26,3 +26,6 @@ credentials/
 dbt/target/
 dbt/logs/
 dbt/dbt_packages/
+
+# Lane 3 evaluation outputs (regenerated)
+evaluation/output/

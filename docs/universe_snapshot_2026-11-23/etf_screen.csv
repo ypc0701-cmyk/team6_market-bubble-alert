@@ -1,0 +1,13 @@
+etf,fund_name,issuer,management,net_assets_usd,net_assets_as_of,holdings_as_of,source,qualifies,note
+BAI,iShares A.I. Innovation and Tech Active ETF,BlackRock iShares,active,11344802453,2026-11-23,2026-11-20,https://www.ishares.com/us/products/339081/ishares-a-i-innovation-and-tech-active-etf,yes,Latest holdings file iShares published on Nov 23 is dated Nov 20 (prior trading day)
+AIQ,Global X Artificial Intelligence & Technology ETF,Global X,index,8870000000,2026-11-23,2026-11-23,https://www.globalxetfs.com/funds/aiq/,yes,Issuer shows $8.87B (rounded)
+ARTY,iShares Future AI & Tech ETF,BlackRock iShares,index,3202630338,2026-11-23,2026-11-20,https://www.ishares.com/us/products/297905/,yes,Latest holdings file iShares published on Nov 23 is dated Nov 20 (prior trading day)
+BOTZ,Global X Robotics & Artificial Intelligence ETF,Global X,index,2680000000,2026-11-23,2026-11-23,https://www.globalxetfs.com/funds/botz/,yes,Issuer shows $2.68B (rounded)
+CHAT,Roundhill Generative AI & Technology ETF,Roundhill,active,1420000000,2026-11-23,2026-11-23,https://www.roundhillinvestments.com/etf/chat/,yes,Issuer shows $1.42B (rounded)
+IGPT,Invesco AI and Next Gen Software ETF,Invesco,index,1104232163,2026-11-23,2026-11-20,https://www.invesco.com/us/en/financial-products/etfs/invesco-ai-and-next-gen-software-etf.html,yes,"Confirmed Nov 25: Invesco NAV history gives $74.259056 on Nov 23 x 14.87M shares = $1,104,232,163 (Nov 24: $1,050,632,614 published). On the snapshot date itself the site showed only the Nov 20 figure ($985.4M); read as of the Nov 23 close like every other fund (Javier, Nov 24)"
+AGIX,KraneShares Public-Private AI & Technology ETF,KraneShares,index,877314379,2026-11-23,2026-11-23,https://kraneshares.com/etf/agix/,no,23.9M shares x NAV $36.71 on Nov 23
+IVES,Dan IVES Wedbush AI Revolution ETF,Wedbush,index,751585250,2026-11-23,,https://www.wedbushfunds.com/ives,no,
+ALAI,Alger AI Enablers & Adopters ETF,Alger,active,772635782,2026-11-23,,https://www.alger.com/pages/Products.aspx?productCode=2494,no,An aggregator listed $3.25B; the issuer figure governs
+AIPO,Defiance AI & Power Infrastructure ETF,Defiance,index,707070000,2026-11-23,,https://stockanalysis.com/list/artificial-intelligence-etfs/,no,Aggregator figure only; far below threshold
+AIS,VistaShares Artificial Intelligence Supercycle ETF,VistaShares,active,702510000,2026-11-23,,https://stockanalysis.com/list/artificial-intelligence-etfs/,no,Aggregator figure only; far below threshold
+ROBT,First Trust Nasdaq Artificial Intelligence & Robotics ETF,First Trust,index,645920000,2026-11-23,,https://stockanalysis.com/list/artificial-intelligence-etfs/,no,Aggregator figure only; far below threshold

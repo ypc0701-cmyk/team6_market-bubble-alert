@@ -76,3 +76,59 @@ seeds:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [ticker, added_date]
+
+  - name: universe_members
+    description: >
+      Phase 2 AI universe selected by Lane 3 from the
+      2026-11-23 ETF holdings snapshot (PR #104).
+      Type 2 membership history per schema contract v0.3.
+    config:
+      column_types:
+        ticker: STRING
+        company_name: STRING
+        source_etfs: STRING
+        n_source_etfs: INT64
+        listing_date: DATE
+        snapshot_date: DATE
+        added_date: DATE
+        removed_date: DATE
+        added_reason: STRING
+        removed_reason: STRING
+        notes: STRING
+    columns:
+      - name: ticker
+        data_tests:
+          - not_null
+      - name: company_name
+        data_tests:
+          - not_null
+      - name: source_etfs
+        data_tests:
+          - not_null
+      - name: n_source_etfs
+        data_tests:
+          - not_null
+      - name: listing_date
+        data_tests:
+          - not_null
+      - name: snapshot_date
+        data_tests:
+          - not_null
+      - name: added_date
+        data_tests:
+          - not_null
+      - name: added_reason
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['etf_snapshot']
+      - name: removed_reason
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['delisting_or_acquisition', 'dropped_at_refresh']
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ticker, added_date]
