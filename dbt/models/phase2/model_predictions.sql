@@ -7,22 +7,22 @@
     {
         'name': 'baseline_drawdown',
         'feature': 'drawdown_252',
-        'created_ms': 1795666341060
+        'created_ms': var('phase2_model_timestamps')['baseline_drawdown']
     },
     {
         'name': 'baseline_vol',
         'feature': 'vol_60d',
-        'created_ms': 1795666365828
+        'created_ms': var('phase2_model_timestamps')['baseline_vol']
     },
     {
         'name': 'logistic',
         'feature': none,
-        'created_ms': 1795666225817
+        'created_ms': var('phase2_model_timestamps')['logistic']
     },
     {
         'name': 'boosted_trees',
         'feature': none,
-        'created_ms': 1795667455883
+        'created_ms': var('phase2_model_timestamps')['boosted_trees']
     }
 ] %}
 

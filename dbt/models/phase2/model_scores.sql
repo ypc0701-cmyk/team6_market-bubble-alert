@@ -11,7 +11,7 @@ with predictions as (
 
     select *
     from {{ ref('model_predictions') }}
-    where model_name = 'baseline_vol'
+    where model_name = '{{ var('phase2_served_model') }}'
 
 ),
 

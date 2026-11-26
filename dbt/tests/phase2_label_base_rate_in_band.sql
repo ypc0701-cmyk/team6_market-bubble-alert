@@ -9,6 +9,7 @@ with train_rows as (
         and f.ticker = l.ticker
     where l.role = 'universe'
       and f.is_model_eligible
+      and l.label_status = 'final'
       and l.split = 'train'
       and l.label_drop_20pct_60d is not null
 ),
