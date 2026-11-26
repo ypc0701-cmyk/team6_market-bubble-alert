@@ -3,15 +3,15 @@
     enabled=(target.name == 'dev')
 ) }}
 
--- Development-only scores.
--- Rank each stock relative to the universe, excluding our basket
--- from the ranking population.
+-- Development-only scoring.
+-- Served model selected by the Phase 2 R6 evaluation.
+-- The speculative basket is excluded from the universe ranking population.
 
 with predictions as (
 
     select *
     from {{ ref('model_predictions') }}
-    where model_name = 'logistic'
+    where model_name = 'baseline_vol'
 
 ),
 
@@ -39,14 +39,20 @@ ranked as (
 
 ),
 
-scored as (
+with_previous as (
 
     select
         *,
+        lag(as_of) over (
+            partition by ticker
+            order by as_of
+        ) as previous_as_of,
+
         lag(prob_drop_20pct_60d) over (
             partition by ticker
             order by as_of
         ) as previous_probability
+
     from ranked
 
 )
@@ -67,9 +73,12 @@ select
         safe_divide(rank_in_universe, universe_size)
     ) as pct_rank_in_universe,
 
-    prob_drop_20pct_60d - previous_probability
-        as prob_change_1w,
+    case
+        when date_diff(as_of, previous_as_of, day) = 7
+        then prob_drop_20pct_60d - previous_probability
+        else null
+    end as prob_change_1w,
 
     scored_at
 
-from scored
+from with_previous

@@ -15,7 +15,7 @@
         OPTIONS (
             model_type = 'LOGISTIC_REG',
             input_label_cols = ['label_drop_20pct_60d'],
-            auto_class_weights = TRUE,
+            auto_class_weights = FALSE,
             data_split_method = 'NO_SPLIT',
             max_iterations = 20
         )

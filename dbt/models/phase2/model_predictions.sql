@@ -3,8 +3,28 @@
     enabled=(target.name == 'dev')
 ) }}
 
--- Development-only predictions from the logistic regression model.
--- This is NOT the final four-model production implementation.
+{% set models = [
+    {
+        'name': 'baseline_drawdown',
+        'feature': 'drawdown_252',
+        'created_ms': 1795666341060
+    },
+    {
+        'name': 'baseline_vol',
+        'feature': 'vol_60d',
+        'created_ms': 1795666365828
+    },
+    {
+        'name': 'logistic',
+        'feature': none,
+        'created_ms': 1795666225817
+    },
+    {
+        'name': 'boosted_trees',
+        'feature': none,
+        'created_ms': 1795667455883
+    }
+] %}
 
 with scoring_input as (
 
@@ -29,30 +49,61 @@ with scoring_input as (
     from {{ ref('weekly_features') }} f
 
     join {{ ref('weekly_labels') }} l
-      on f.as_of = l.as_of
-     and f.ticker = l.ticker
+        on f.as_of = l.as_of
+        and f.ticker = l.ticker
 
     where f.is_model_eligible
 
-),
+)
 
-predictions as (
+{% for model in models %}
+
+, predictions_{{ loop.index }} as (
 
     select *
     from ML.PREDICT(
-        MODEL `market-bubble-alert.marts_dev.phase2_logistic_dev`,
-        (select * from scoring_input)
+        MODEL `{{ target.database }}.marts_dev.phase2_{{ model.name }}_dev`,
+        (
+            select
+                as_of,
+                ticker,
+                role,
+                split,
+                {% if model.feature %}
+                    {{ model.feature }}
+                {% else %}
+                    drawdown_252,
+                    ret_20d,
+                    ret_60d,
+                    ret_120d,
+                    vol_60d,
+                    volume_ratio_60d,
+                    beta_spx_120d,
+                    beta_arkk_120d,
+                    days_listed_capped,
+                    spx_distance,
+                    credit_distance,
+                    universe_breadth
+                {% endif %}
+            from scoring_input
+        )
     )
 
 )
+
+{% endfor %}
+
+{% for model in models %}
 
 select
     as_of,
     ticker,
     role,
-    'logistic' as model_name,
-    'logistic-dev-1795492321503' as model_version,
-    timestamp_millis(1795492321503) as trained_at,
+    '{{ model.name }}' as model_name,
+
+    '{{ model.name }}-dev-{{ model.created_ms }}' as model_version,
+
+    timestamp_millis({{ model.created_ms }}) as trained_at,
 
     (
         select p.prob
@@ -63,4 +114,10 @@ select
     split,
     current_timestamp() as scored_at
 
-from predictions
+from predictions_{{ loop.index }}
+
+{% if not loop.last %}
+union all
+{% endif %}
+
+{% endfor %}
